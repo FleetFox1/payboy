@@ -3,7 +3,15 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
-import type { Product } from '@/types/product';
+
+type Product = {
+  id: string;
+  name: string;
+  description: string;
+  price: string;
+  imageUrl: string | null;
+  createdAt: string;
+};
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -44,6 +52,16 @@ export default function ProductsPage() {
 
   return (
     <main className="max-w-4xl mx-auto p-6 space-y-6">
+      {/* Add back button and header */}
+      <div className="flex items-center gap-4 mb-6">
+        <button
+          onClick={() => router.push('/onboarding/store')}
+          className="text-gray-600 hover:text-gray-900 flex items-center gap-2"
+        >
+          ← Back to Dashboard
+        </button>
+      </div>
+
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Your Products</h1>
         <button

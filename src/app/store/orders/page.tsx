@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
 
 type Order = {
@@ -18,6 +19,7 @@ type Order = {
 };
 
 export default function OrdersPage() {
+  const router = useRouter();
   const { authenticated } = usePrivy();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -77,6 +79,16 @@ export default function OrdersPage() {
 
   return (
     <main className="max-w-4xl mx-auto p-6 space-y-6">
+      {/* Add back button */}
+      <div className="flex items-center gap-4 mb-6">
+        <button
+          onClick={() => router.push('/onboarding/store')}
+          className="text-gray-600 hover:text-gray-900 flex items-center gap-2"
+        >
+          ← Back to Dashboard
+        </button>
+      </div>
+
       <h1 className="text-2xl font-bold">Orders</h1>
 
       {isLoading ? (

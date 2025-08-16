@@ -1,20 +1,30 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
 
 type StoreSettings = {
   storeName: string;
   storeDescription: string;
   contactEmail: string;
+  contactPhone: string;
   shippingEnabled: boolean;
   shippingFee: string;
   taxRate: string;
   returnPolicy: string;
   termsOfService: string;
+  // Payment methods
+  paypalEmail: string;
+  venmoUsername: string;
+  // Social media
+  telegramUsername: string;
+  facebookUrl: string;
+  instagramUsername: string;
 };
 
 export default function SettingsPage() {
+  const router = useRouter();
   const { authenticated, user } = usePrivy();
   const [isSaving, setIsSaving] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -22,11 +32,19 @@ export default function SettingsPage() {
     storeName: 'My Store',
     storeDescription: 'A great place to shop for quality products',
     contactEmail: 'store@example.com',
+    contactPhone: '+1 (555) 123-4567',
     shippingEnabled: true,
     shippingFee: '5.99',
     taxRate: '8.25',
     returnPolicy: '30-day return policy',
     termsOfService: 'Standard terms and conditions apply',
+    // Payment methods
+    paypalEmail: '',
+    venmoUsername: '',
+    // Social media
+    telegramUsername: '',
+    facebookUrl: '',
+    instagramUsername: '',
   });
 
   if (!authenticated) {
@@ -65,6 +83,16 @@ export default function SettingsPage() {
 
   return (
     <main className="max-w-4xl mx-auto p-6 space-y-6">
+      {/* Add back button */}
+      <div className="flex items-center gap-4 mb-6">
+        <button
+          onClick={() => router.push('/onboarding/store')}
+          className="text-gray-600 hover:text-gray-900 flex items-center gap-2"
+        >
+          ← Back to Dashboard
+        </button>
+      </div>
+
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Store Settings</h1>
         {success && (
@@ -109,6 +137,20 @@ export default function SettingsPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
+              Contact Phone
+            </label>
+            <input
+              type="tel"
+              name="contactPhone"
+              value={settings.contactPhone}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="+1 (555) 123-4567"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
               Store Description
             </label>
             <textarea
@@ -118,6 +160,92 @@ export default function SettingsPage() {
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
+          </div>
+        </section>
+
+        {/* Payment Methods */}
+        <section className="bg-white rounded-lg border p-6 space-y-4">
+          <h2 className="text-lg font-semibold text-gray-900">Payment Methods</h2>
+          <p className="text-sm text-gray-600">Connect additional payment methods for your customers</p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                PayPal Email
+              </label>
+              <input
+                type="email"
+                name="paypalEmail"
+                value={settings.paypalEmail}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="your-paypal@email.com"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Venmo Username
+              </label>
+              <input
+                type="text"
+                name="venmoUsername"
+                value={settings.venmoUsername}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="@your-venmo-username"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Social Media */}
+        <section className="bg-white rounded-lg border p-6 space-y-4">
+          <h2 className="text-lg font-semibold text-gray-900">Social Media</h2>
+          <p className="text-sm text-gray-600">Connect your social media accounts for customer support</p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                📱 Telegram Username
+              </label>
+              <input
+                type="text"
+                name="telegramUsername"
+                value={settings.telegramUsername}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="@your-telegram"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                📘 Facebook Page URL
+              </label>
+              <input
+                type="url"
+                name="facebookUrl"
+                value={settings.facebookUrl}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="https://facebook.com/your-page"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                📸 Instagram Username
+              </label>
+              <input
+                type="text"
+                name="instagramUsername"
+                value={settings.instagramUsername}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="@your-instagram"
+              />
+            </div>
           </div>
         </section>
 
