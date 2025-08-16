@@ -46,6 +46,7 @@
     "@openzeppelin/contracts": "^5.4.0",
     "@tailwindcss/postcss": "^4",
     "@types/mongodb": "^4.0.7",
+    "@types/mongoose": "^5.11.97",
     "@types/node": "^20",
     "@types/qrcode": "^1.5.5",
     "@types/react": "^19",
