@@ -75,7 +75,7 @@ export default function StoreOnboarding() {
   };
 
   const handleSubmit = async () => {
-    if (!formData.storeName || !formData.storeType || !formData.storeAddress) {
+    if (!formData.storeName || !formData.storeType) {
       setError('Please fill in required fields');
       return;
     }
@@ -86,24 +86,30 @@ export default function StoreOnboarding() {
     try {
       const token = localStorage.getItem('authToken');
       
-      const response = await fetch('/api/seller/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          ...formData,
-          userType: 'seller'
-        })
-      });
+      if (token) {
+        const response = await fetch('/api/seller/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            ...formData,
+            userType: 'seller'
+          })
+        });
 
-      const data = await response.json();
+        const data = await response.json();
 
-      if (data.success) {
-        router.push('/onboarding/success?type=seller');
+        if (data.success) {
+          router.push('/onboarding/store/success');
+          return;
+        } else {
+          setError(data.error || 'Failed to create store account');
+          return;
+        }
       } else {
-        setError(data.error || 'Failed to create store account');
+        setError('Please login to continue');
       }
     } catch (err) {
       setError('Network error. Please try again.');
@@ -177,7 +183,6 @@ export default function StoreOnboarding() {
                 placeholder="+1 (555) 123-4567"
               />
 
-              {/* Show PYUSD + QR Code info */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h3 className="font-medium text-blue-900 mb-2">💰 Powered by PYUSD on Arbitrum</h3>
                 <p className="text-sm text-blue-800">
@@ -266,44 +271,6 @@ export default function StoreOnboarding() {
                 onChange={(value: string) => updateFormData('website', value)}
                 placeholder="https://yourstore.com"
               />
-
-              {/* Primary Payment Currency */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Payment Currency
-                </label>
-                <div className="p-4 border-2 border-blue-200 bg-blue-50 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">
-                        P
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-blue-900">PayPal USD (PYUSD)</h3>
-                        <p className="text-sm text-blue-700">Stable, regulated, and customer-friendly</p>
-                      </div>
-                    </div>
-                    <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm">
-                      Default
-                    </span>
-                  </div>
-                </div>
-                <p className="text-sm text-gray-500 mt-2">
-                  More payment options coming soon! Your store will be ready for multi-currency support.
-                </p>
-              </div>
-
-              {/* Payment Method Info */}
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <h3 className="font-medium text-green-900 mb-2">💳 Payment Features</h3>
-                <ul className="text-sm text-green-800 space-y-1">
-                  <li>• Generate QR codes for any amount</li>
-                  <li>• Accept PYUSD on Arbitrum (low fees)</li>
-                  <li>• Instant payment confirmations</li>
-                  <li>• No chargebacks or reversals</li>
-                  <li>• Print-ready QR codes for your counter</li>
-                </ul>
-              </div>
             </div>
 
             <div className="flex justify-between mt-8">
@@ -334,10 +301,10 @@ export default function StoreOnboarding() {
           <div className="bg-white rounded-lg shadow-md p-8">
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                QR Code Setup & Notifications
+                QR Code Setup & Launch
               </h1>
               <p className="text-gray-600">
-                Configure your payment QR codes and notification preferences
+                Configure your payment QR codes and launch your store
               </p>
               <div className="flex items-center mt-4">
                 <div className="flex-1 bg-blue-600 h-2 rounded-full"></div>
@@ -347,25 +314,21 @@ export default function StoreOnboarding() {
               <p className="text-sm text-gray-500 mt-2">Step 3 of 3</p>
             </div>
 
-            <div className="space-y-6">
-              {/* QR Code Preferences */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Default QR Code Size
-                </label>
-                <SelectField
-                  label=""
-                  value={formData.qrCodeSize}
-                  onChange={(value) => updateFormData('qrCodeSize', value)}
-                  options={qrCodeSizes.map(size => ({ value: size, label: size }))}
-                  placeholder="Select QR code size"
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  You can generate different sizes for counter displays, receipts, or signage
-                </p>
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-700 text-sm">{error}</p>
               </div>
+            )}
 
-              {/* Printing Options */}
+            <div className="space-y-6">
+              <SelectField
+                label="Default QR Code Size"
+                value={formData.qrCodeSize}
+                onChange={(value) => updateFormData('qrCodeSize', value)}
+                options={qrCodeSizes.map(size => ({ value: size, label: size }))}
+                placeholder="Select QR code size"
+              />
+
               <div>
                 <label className="flex items-center">
                   <input
@@ -381,7 +344,6 @@ export default function StoreOnboarding() {
                 </p>
               </div>
 
-              {/* Notification Email */}
               <FormField
                 label="Notification Email (Optional)"
                 type="email"
@@ -391,7 +353,7 @@ export default function StoreOnboarding() {
               />
 
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <h3 className="font-medium text-green-900 mb-2">🎉 Your store will get:</h3>
+                <h3 className="font-medium text-green-900 mb-2">🎉 Your store will include:</h3>
                 <ul className="text-sm text-green-800 space-y-1">
                   <li>• Custom QR code generator dashboard</li>
                   <li>• PYUSD payment processing on Arbitrum</li>
@@ -400,33 +362,6 @@ export default function StoreOnboarding() {
                   <li>• Customer payment receipts</li>
                   <li>• Print-ready QR codes with branding</li>
                 </ul>
-              </div>
-
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <h3 className="font-medium text-gray-900 mb-2">Store Summary:</h3>
-                <div className="text-sm text-gray-700 space-y-1">
-                  <p><strong>Store:</strong> {formData.storeName}</p>
-                  <p><strong>Type:</strong> {formData.storeType}</p>
-                  <p><strong>Category:</strong> {formData.category}</p>
-                  <p><strong>Address:</strong> {formData.storeAddress}</p>
-                  <p><strong>Currency:</strong> PYUSD</p>
-                  <p><strong>Network:</strong> Arbitrum One</p>
-                  <p><strong>QR Size:</strong> {formData.qrCodeSize}</p>
-                </div>
-              </div>
-
-              {/* Sample QR Code Preview */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="font-medium text-blue-900 mb-2">🔲 QR Code Preview</h3>
-                <p className="text-sm text-blue-800 mb-3">
-                  Customers will scan codes like this to pay with PYUSD:
-                </p>
-                <div className="bg-white p-4 rounded border-2 border-dashed border-blue-300 text-center">
-                  <div className="text-6xl mb-2">⬜</div>
-                  <p className="text-sm text-gray-600">QR Code for $0.00 PYUSD</p>
-                  <p className="text-xs text-gray-500">Generated in your dashboard</p>
-                  <p className="text-xs text-blue-600 mt-1">{formData.storeName}</p>
-                </div>
               </div>
             </div>
 
@@ -442,7 +377,7 @@ export default function StoreOnboarding() {
                 disabled={loading}
                 className="px-8 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:bg-gray-300 transition"
               >
-                {loading ? 'Setting Up Store...' : 'Launch Store'}
+                {loading ? 'Setting Up Store...' : '🚀 Launch Store'}
               </button>
             </div>
           </div>
