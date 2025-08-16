@@ -15,7 +15,32 @@ export default function OnboardingRouter() {
       return;
     }
 
-    // Check if user has selected a role
+    // Check if user already has a userType (completed onboarding)
+    const userType = localStorage.getItem('userType');
+    
+    if (userType) {
+      // User has completed onboarding, redirect to their dashboard
+      switch (userType) {
+        case 'marketplace':
+        case 'marketplace_owner':
+          router.replace('/dashboard/marketplace');
+          return;
+        case 'solo_seller':
+        case 'seller':
+          router.replace('/dashboard/solo-seller');
+          return;
+        case 'store_owner':
+        case 'store':
+          router.replace('/dashboard/store');
+          return;
+        default:
+          // Unknown user type, clear and start over
+          localStorage.removeItem('userType');
+          break;
+      }
+    }
+
+    // Check if user has selected a role but hasn't completed onboarding
     const savedRole = localStorage.getItem('selectedRole');
     
     if (savedRole === 'store') {
@@ -32,12 +57,12 @@ export default function OnboardingRouter() {
 
   // Show loading while routing
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center">
-        <h2 className="text-xl font-semibold mb-2">Setting up your account...</h2>
-        <p className="text-gray-600">Please wait while we redirect you</p>
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="text-center bg-white p-8 rounded-lg shadow-md">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <h2 className="text-xl font-semibold mb-2 text-gray-900">Setting up your account...</h2>
+        <p className="text-gray-600">Redirecting you to the right place</p>
       </div>
     </div>
   );
 }
-

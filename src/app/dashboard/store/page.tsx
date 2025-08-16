@@ -1,390 +1,354 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FormField } from '@/components/FormField';
-import { SelectField } from '@/components/SelectField';
+import { usePrivy } from '@privy-io/react-auth';
+import ENSAddress from '@/components/ENSAddress';
 
-interface StoreFormData {
+interface StoreData {
+  id: string;
   storeName: string;
+  ensName?: string;
   storeType: string;
-  storeEmail: string;
-  storePhone: string;
   storeAddress: string;
   category: string;
-  description: string;
-  website: string;
-  qrCodeSize: string;
-  printingEnabled: boolean;
-  notificationEmail: string;
+  walletAddress: string;
+  isActive: boolean;
+  isVerified: boolean;
+  totalEarnings: number;
+  totalTransactions: number;
+  lastPayment?: string;
+  createdAt: string;
 }
 
-const storeTypes = [
-  'Retail Store',
-  'Restaurant/Food Service',
-  'Gas Station',
-  'Convenience Store',
-  'Pharmacy',
-  'Grocery Store',
-  'Electronics Store',
-  'Clothing Store',
-  'Coffee Shop',
-  'Other'
-];
-
-const categories = [
-  'Food & Dining',
-  'Retail & Shopping',
-  'Automotive',
-  'Health & Wellness',
-  'Entertainment',
-  'Services',
-  'Beauty & Personal Care',
-  'Other'
-];
-
-const qrCodeSizes = [
-  'Small (2x2 inches)',
-  'Medium (4x4 inches)',
-  'Large (6x6 inches)',
-  'Extra Large (8x8 inches)'
-];
-
-export default function StoreOnboarding() {
-  const router = useRouter();
-  const [step, setStep] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  
-  const [formData, setFormData] = useState<StoreFormData>({
-    storeName: '',
-    storeType: '',
-    storeEmail: '',
-    storePhone: '',
-    storeAddress: '',
-    category: '',
-    description: '',
-    website: '',
-    qrCodeSize: 'Medium (4x4 inches)',
-    printingEnabled: true,
-    notificationEmail: '',
-  });
-
-  const updateFormData = (field: keyof StoreFormData, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+interface StoreStats {
+  totalEarnings: number;
+  totalTransactions: number;
+  averageTransaction: number;
+  storeName: string;
+  ensName?: string;
+  storeType: string;
+  isVerified: boolean;
+  isActive: boolean;
+  storeAge: {
+    days: number;
+    weeks: number;
+    months: number;
   };
+  lastPayment?: string;
+  daysSinceLastPayment?: number;
+  performance: {
+    earningsGoal: number;
+    goalProgress: number;
+    transactionGoal: number;
+    transactionProgress: number;
+  };
+  status: {
+    hasENS: boolean;
+    profileCompletion: number;
+  };
+}
 
-  const handleSubmit = async () => {
-    if (!formData.storeName || !formData.storeType) {
-      setError('Please fill in required fields');
-      return;
+export default function StoreDashboard() {
+  const router = useRouter();
+  const { authenticated, user, login } = usePrivy();
+  const [storeData, setStoreData] = useState<StoreData | null>(null);
+  const [storeStats, setStoreStats] = useState<StoreStats | null>(null);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loginAttempted, setLoginAttempted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function checkAuth() {
+      // Only attempt login once
+      if (!authenticated && !loginAttempted) {
+        setLoginAttempted(true);
+        try {
+          await login();
+        } catch (err) {
+          console.error('Login failed:', err);
+          router.replace('/role');
+        }
+        return;
+      }
+
+      // Load dashboard data only when authenticated
+      if (authenticated) {
+        await loadStoreData();
+      }
     }
 
-    setLoading(true);
-    setError('');
+    checkAuth();
+  }, [authenticated, router]);
 
+  const loadStoreData = async () => {
     try {
+      setIsLoading(true);
       const token = localStorage.getItem('authToken');
       
-      if (token) {
-        const response = await fetch('/api/seller/create', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            ...formData,
-            userType: 'seller'
-          })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-          router.push('/onboarding/store/success');
-          return;
-        } else {
-          setError(data.error || 'Failed to create store account');
-          return;
-        }
-      } else {
-        setError('Please login to continue');
+      if (!token) {
+        router.replace('/role');
+        return;
       }
+
+      // Fetch store stats (includes most data we need)
+      const statsResponse = await fetch('/api/store/stats', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (statsResponse.ok) {
+        const statsData = await statsResponse.json();
+        if (statsData.success) {
+          setStoreStats(statsData.stats);
+        } else {
+          setError(statsData.error || 'Failed to load store data');
+        }
+      } else if (statsResponse.status === 404) {
+        // Store not found - redirect to onboarding
+        router.replace('/onboarding/store');
+        return;
+      } else {
+        setError('Failed to fetch store data');
+      }
+
+      // Mock transactions for now (TODO: Create transaction API)
+      setTransactions([
+        { 
+          id: 'tx1', 
+          type: 'QR Payment Received', 
+          amount: 25.50, 
+          date: '2025-08-15',
+          customer: 'customer1.eth'
+        },
+        { 
+          id: 'tx2', 
+          type: 'QR Payment Received', 
+          amount: 15.00, 
+          date: '2025-08-14',
+          customer: '0x742d35Cc6638Fd8593'
+        },
+        { 
+          id: 'tx3', 
+          type: 'Withdrawal', 
+          amount: -20.0, 
+          date: '2025-08-13',
+          customer: null
+        },
+      ]);
+
     } catch (err) {
-      setError('Network error. Please try again.');
+      console.error('Error loading store data:', err);
+      setError('Network error loading store data');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  if (step === 1) {
+  // Show loading state
+  if (isLoading || !authenticated) {
     return (
-      <main className="min-h-screen bg-gray-50 py-12">
-        <div className="container mx-auto px-4 max-w-2xl">
-          <div className="bg-white rounded-lg shadow-md p-8">
-            <div className="mb-8">
-              <div className="text-center mb-6">
-                <div className="text-4xl mb-3">🏪</div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                  Set Up Your Physical Store
-                </h1>
-                <p className="text-gray-600">
-                  Start accepting PYUSD payments at your location with QR codes
-                </p>
-              </div>
-              
-              <div className="flex items-center">
-                <div className="flex-1 bg-blue-600 h-2 rounded-full"></div>
-                <div className="flex-1 bg-gray-200 h-2 rounded-full ml-2"></div>
-                <div className="flex-1 bg-gray-200 h-2 rounded-full ml-2"></div>
-              </div>
-              <p className="text-sm text-gray-500 mt-2">Step 1 of 3</p>
-            </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Loading Store Dashboard...</h2>
+          <p className="text-gray-600">Please wait while we load your store data</p>
+        </div>
+      </div>
+    );
+  }
 
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-red-700 text-sm">{error}</p>
-              </div>
+  // Show error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2 text-red-600">Error Loading Store</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={() => router.replace('/onboarding/store')}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
+            Set Up Store
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <main className="max-w-4xl mx-auto p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">
+            {storeStats?.storeName || 'Store'} Dashboard
+          </h1>
+          <div className="flex items-center space-x-2 mt-1">
+            <span className="text-sm text-gray-600">{storeStats?.storeType}</span>
+            {storeStats?.isVerified && (
+              <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
+                ✓ Verified
+              </span>
             )}
-
-            <div className="space-y-6">
-              <FormField
-                label="Store Name"
-                type="text"
-                value={formData.storeName}
-                onChange={(value: string) => updateFormData('storeName', value)}
-                required
-                placeholder="Enter your store name"
-              />
-
-              <SelectField
-                label="Store Type"
-                value={formData.storeType}
-                onChange={(value) => updateFormData('storeType', value)}
-                options={storeTypes.map(type => ({ value: type, label: type }))}
-                required
-                placeholder="Select store type"
-              />
-
-              <FormField
-                label="Store Email"
-                type="email"
-                value={formData.storeEmail}
-                onChange={(value: string) => updateFormData('storeEmail', value)}
-                placeholder="store@example.com"
-              />
-
-              <FormField
-                label="Store Phone"
-                type="tel"
-                value={formData.storePhone}
-                onChange={(value: string) => updateFormData('storePhone', value)}
-                placeholder="+1 (555) 123-4567"
-              />
-
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="font-medium text-blue-900 mb-2">💰 Powered by PYUSD on Arbitrum</h3>
-                <p className="text-sm text-blue-800">
-                  Generate QR codes for instant PayPal USD payments. Fast, secure, and low-cost transactions on Arbitrum One.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex justify-between mt-8">
-              <button
-                onClick={() => router.push('/onboarding/type')}
-                className="px-6 py-2 text-gray-600 hover:text-gray-800 transition"
-              >
-                ← Back
-              </button>
-              <button
-                onClick={() => setStep(2)}
-                disabled={!formData.storeName || !formData.storeType}
-                className="px-8 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
-              >
-                Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  if (step === 2) {
-    return (
-      <main className="min-h-screen bg-gray-50 py-12">
-        <div className="container mx-auto px-4 max-w-2xl">
-          <div className="bg-white rounded-lg shadow-md p-8">
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Store Details & Location
-              </h1>
-              <p className="text-gray-600">
-                Help customers find your store and set up payment preferences
-              </p>
-              <div className="flex items-center mt-4">
-                <div className="flex-1 bg-blue-600 h-2 rounded-full"></div>
-                <div className="flex-1 bg-blue-600 h-2 rounded-full ml-2"></div>
-                <div className="flex-1 bg-gray-200 h-2 rounded-full ml-2"></div>
-              </div>
-              <p className="text-sm text-gray-500 mt-2">Step 2 of 3</p>
-            </div>
-
-            <div className="space-y-6">
-              <FormField
-                label="Store Address"
-                type="text"
-                value={formData.storeAddress}
-                onChange={(value: string) => updateFormData('storeAddress', value)}
-                required
-                placeholder="123 Main St, City, State 12345"
-              />
-
-              <SelectField
-                label="Business Category"
-                value={formData.category}
-                onChange={(value) => updateFormData('category', value)}
-                options={categories.map(cat => ({ value: cat, label: cat }))}
-                required
-                placeholder="Select category"
-              />
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Store Description
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => updateFormData('description', e.target.value)}
-                  placeholder="Brief description of your store and what you sell..."
-                  rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <FormField
-                label="Website (Optional)"
-                type="url"
-                value={formData.website}
-                onChange={(value: string) => updateFormData('website', value)}
-                placeholder="https://yourstore.com"
-              />
-            </div>
-
-            <div className="flex justify-between mt-8">
-              <button
-                onClick={() => setStep(1)}
-                className="px-6 py-2 text-gray-600 hover:text-gray-800 transition"
-              >
-                ← Back
-              </button>
-              <button
-                onClick={() => setStep(3)}
-                disabled={!formData.storeAddress || !formData.category}
-                className="px-8 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
-              >
-                Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  if (step === 3) {
-    return (
-      <main className="min-h-screen bg-gray-50 py-12">
-        <div className="container mx-auto px-4 max-w-2xl">
-          <div className="bg-white rounded-lg shadow-md p-8">
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                QR Code Setup & Launch
-              </h1>
-              <p className="text-gray-600">
-                Configure your payment QR codes and launch your store
-              </p>
-              <div className="flex items-center mt-4">
-                <div className="flex-1 bg-blue-600 h-2 rounded-full"></div>
-                <div className="flex-1 bg-blue-600 h-2 rounded-full ml-2"></div>
-                <div className="flex-1 bg-blue-600 h-2 rounded-full ml-2"></div>
-              </div>
-              <p className="text-sm text-gray-500 mt-2">Step 3 of 3</p>
-            </div>
-
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-red-700 text-sm">{error}</p>
-              </div>
+            {!storeStats?.isActive && (
+              <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">
+                Inactive
+              </span>
             )}
-
-            <div className="space-y-6">
-              <SelectField
-                label="Default QR Code Size"
-                value={formData.qrCodeSize}
-                onChange={(value) => updateFormData('qrCodeSize', value)}
-                options={qrCodeSizes.map(size => ({ value: size, label: size }))}
-                placeholder="Select QR code size"
-              />
-
-              <div>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={formData.printingEnabled}
-                    onChange={(e) => updateFormData('printingEnabled', e.target.checked)}
-                    className="mr-3"
-                  />
-                  <span className="font-medium">Enable print-ready QR codes</span>
-                </label>
-                <p className="text-sm text-gray-500 mt-1 ml-6">
-                  Generate high-resolution QR codes with your store branding for printing
-                </p>
-              </div>
-
-              <FormField
-                label="Notification Email (Optional)"
-                type="email"
-                value={formData.notificationEmail}
-                onChange={(value: string) => updateFormData('notificationEmail', value)}
-                placeholder="notifications@yourstore.com"
-              />
-
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <h3 className="font-medium text-green-900 mb-2">🎉 Your store will include:</h3>
-                <ul className="text-sm text-green-800 space-y-1">
-                  <li>• Custom QR code generator dashboard</li>
-                  <li>• PYUSD payment processing on Arbitrum</li>
-                  <li>• Real-time payment notifications</li>
-                  <li>• Transaction history & reporting</li>
-                  <li>• Customer payment receipts</li>
-                  <li>• Print-ready QR codes with branding</li>
-                </ul>
-              </div>
-            </div>
-
-            <div className="flex justify-between mt-8">
-              <button
-                onClick={() => setStep(2)}
-                className="px-6 py-2 text-gray-600 hover:text-gray-800 transition"
-              >
-                ← Back
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={loading}
-                className="px-8 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:bg-gray-300 transition"
-              >
-                {loading ? 'Setting Up Store...' : '🚀 Launch Store'}
-              </button>
-            </div>
           </div>
         </div>
-      </main>
-    );
-  }
+        
+        <div className="text-right text-sm text-gray-600">
+          <p>Store Age: {storeStats?.storeAge.days || 0} days</p>
+          <p>Profile: {storeStats?.status.profileCompletion || 0}% complete</p>
+        </div>
+      </div>
 
-  return null;
+      {/* Store Identity & Balance */}
+      <section className="border rounded-lg p-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <p className="text-gray-600 text-sm">Store Identity:</p>
+            <div className="font-mono">
+              {storeStats?.ensName ? (
+                <ENSAddress address={user?.wallet?.address || ''} />
+              ) : (
+                <ENSAddress address={user?.wallet?.address || ''} />
+              )}
+            </div>
+            {storeStats?.status.hasENS && (
+              <p className="text-xs text-blue-600 mt-1">
+                ✓ Custom ENS: {storeStats.ensName}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <p className="text-gray-600 text-sm">PYUSD Balance:</p>
+            <p className="text-2xl font-semibold text-green-600">
+              ${storeStats?.totalEarnings.toFixed(2) || '0.00'}
+            </p>
+            <p className="text-xs text-gray-500">
+              {storeStats?.totalTransactions || 0} transactions total
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Performance Stats */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="border rounded-lg p-4">
+          <h3 className="font-semibold text-gray-700">Total Earnings</h3>
+          <p className="text-xl font-bold text-green-600">
+            ${storeStats?.totalEarnings.toFixed(2) || '0.00'}
+          </p>
+          <div className="mt-2 bg-gray-200 rounded-full h-2">
+            <div 
+              className="bg-green-600 h-2 rounded-full" 
+              style={{ width: `${Math.min(100, storeStats?.performance.goalProgress || 0)}%` }}
+            ></div>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Goal: ${storeStats?.performance.earningsGoal || 1000}
+          </p>
+        </div>
+
+        <div className="border rounded-lg p-4">
+          <h3 className="font-semibold text-gray-700">Transactions</h3>
+          <p className="text-xl font-bold text-blue-600">
+            {storeStats?.totalTransactions || 0}
+          </p>
+          <div className="mt-2 bg-gray-200 rounded-full h-2">
+            <div 
+              className="bg-blue-600 h-2 rounded-full" 
+              style={{ width: `${Math.min(100, storeStats?.performance.transactionProgress || 0)}%` }}
+            ></div>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Goal: {storeStats?.performance.transactionGoal || 50}
+          </p>
+        </div>
+
+        <div className="border rounded-lg p-4">
+          <h3 className="font-semibold text-gray-700">Average Sale</h3>
+          <p className="text-xl font-bold text-purple-600">
+            ${storeStats?.averageTransaction.toFixed(2) || '0.00'}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            {storeStats?.daysSinceLastPayment !== undefined 
+              ? `${storeStats.daysSinceLastPayment} days ago`
+              : 'No payments yet'
+            }
+          </p>
+        </div>
+      </section>
+
+      {/* Recent Transactions */}
+      <section className="border rounded-lg p-4">
+        <h2 className="text-lg font-bold mb-2">Recent Transactions</h2>
+        {transactions.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-gray-500 mb-4">No transactions yet.</p>
+            <p className="text-sm text-gray-400">
+              Generate a QR code to start accepting PYUSD payments!
+            </p>
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {transactions.map((tx) => (
+              <li key={tx.id} className="flex justify-between items-center border-b pb-2">
+                <div>
+                  <p className="font-medium">{tx.type}</p>
+                  <div className="flex items-center space-x-2">
+                    <p className="text-xs text-gray-500">{tx.date}</p>
+                    {tx.customer && (
+                      <div className="text-xs">
+                        from <ENSAddress address={tx.customer} className="text-xs" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <p
+                  className={`font-semibold ${
+                    tx.amount < 0 ? 'text-red-600' : 'text-green-600'
+                  }`}
+                >
+                  {tx.amount < 0 ? '-' : '+'}${Math.abs(tx.amount).toFixed(2)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* Action Buttons */}
+      <section className="grid grid-cols-2 gap-4">
+        <button
+          onClick={() => router.push('/qr/generate')}
+          className="bg-green-600 text-white py-3 px-4 rounded hover:bg-green-700 transition font-medium"
+        >
+          🔗 Generate QR Code
+        </button>
+        <button
+          onClick={() => router.push('/store/analytics')}
+          className="bg-blue-600 text-white py-3 px-4 rounded hover:bg-blue-700 transition font-medium"
+        >
+          📊 View Analytics
+        </button>
+        <button
+          onClick={() => router.push('/store/settings')}
+          className="bg-gray-600 text-white py-3 px-4 rounded hover:bg-gray-700 transition font-medium"
+        >
+          ⚙️ Store Settings
+        </button>
+        <button
+          onClick={() => router.push('/store/withdraw')}
+          className="bg-purple-600 text-white py-3 px-4 rounded hover:bg-purple-700 transition font-medium"
+        >
+          💰 Withdraw PYUSD
+        </button>
+      </section>
+    </main>
+  );
 }

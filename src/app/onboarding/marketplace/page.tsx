@@ -7,14 +7,17 @@ import { SelectField } from '@/components/SelectField';
 import { getEnabledChains, getEnabledChainTokens, DEFAULT_CHAIN_ID } from '@/lib/chains';
 import { getDefaultToken, DEFAULT_TOKEN_SYMBOL } from '@/lib/token';
 
-interface MerchantFormData {
-  businessName: string;
-  businessType: string;
+interface MarketplaceFormData {
+  marketplaceName: string;
+  marketplaceType: string;
   businessEmail: string;
   businessPhone: string;
-  feeBps: number;
+  description: string;
+  website: string;
+  commissionRate: number;
+  subscriptionFee: number;
   chainPreference: number;
-  preferredToken: string; // Add token selection
+  preferredToken: string;
   autoRelease: boolean;
   autoReleaseHours: number;
   webhookUrl: string;
@@ -41,12 +44,15 @@ export default function MarketplaceOnboarding() {
   const enabledChains = getEnabledChains();
   const defaultToken = getDefaultToken();
   
-  const [formData, setFormData] = useState<MerchantFormData>({
-    businessName: '',
-    businessType: '',
+  const [formData, setFormData] = useState<MarketplaceFormData>({
+    marketplaceName: '',
+    marketplaceType: '',
     businessEmail: '',
     businessPhone: '',
-    feeBps: 250, // 2.5% default
+    description: '',
+    website: '',
+    commissionRate: 2.5, // 2.5% default
+    subscriptionFee: 0, // Free by default
     chainPreference: DEFAULT_CHAIN_ID, // Arbitrum One
     preferredToken: defaultToken?.symbol || DEFAULT_TOKEN_SYMBOL, // PYUSD
     autoRelease: true,
@@ -54,12 +60,12 @@ export default function MarketplaceOnboarding() {
     webhookUrl: '',
   });
 
-  const updateFormData = (field: keyof MerchantFormData, value: string | number | boolean) => {
+  const updateFormData = (field: keyof MarketplaceFormData, value: string | number | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async () => {
-    if (!formData.businessName || !formData.businessType) {
+    if (!formData.marketplaceName || !formData.marketplaceType) {
       setError('Please fill in required fields');
       return;
     }
@@ -70,24 +76,40 @@ export default function MarketplaceOnboarding() {
     try {
       const token = localStorage.getItem('authToken');
       
-      const response = await fetch('/api/merchant/create', {
+      const response = await fetch('/api/marketplace/create', { // ✅ Fixed API endpoint
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          ...formData,
-          userType: 'merchant'
+          marketplaceName: formData.marketplaceName,
+          marketplaceType: formData.marketplaceType,
+          businessEmail: formData.businessEmail,
+          businessPhone: formData.businessPhone,
+          description: formData.description,
+          website: formData.website,
+          commissionRate: formData.commissionRate,
+          subscriptionFee: formData.subscriptionFee,
+          chainPreference: formData.chainPreference,
+          preferredToken: formData.preferredToken,
+          autoRelease: formData.autoRelease,
+          autoReleaseHours: formData.autoReleaseHours,
+          webhookUrl: formData.webhookUrl
         })
       });
 
       const data = await response.json();
 
       if (data.success) {
-        router.push('/onboarding/success?type=merchant');
+        // ✅ Store marketplace data for dashboard
+        localStorage.setItem('marketplaceData', JSON.stringify(data.marketplace));
+        localStorage.setItem('userType', 'marketplace'); // ✅ Set user type
+        
+        // ✅ Redirect to marketplace dashboard
+        router.push('/dashboard/marketplace');
       } else {
-        setError(data.error || 'Failed to create merchant account');
+        setError(data.error || 'Failed to create marketplace account');
       }
     } catch (err) {
       setError('Network error. Please try again.');
@@ -105,10 +127,10 @@ export default function MarketplaceOnboarding() {
               <div className="text-center mb-6">
                 <div className="text-4xl mb-3">🏪</div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                  Set Up Your Marketplace Business
+                  Launch Your Marketplace
                 </h1>
                 <p className="text-gray-600">
-                  Get started with PayBoy's merchant tools and smart contract escrow
+                  Create a multi-merchant platform with PayBoy's smart contract escrow
                 </p>
               </div>
               
@@ -128,21 +150,21 @@ export default function MarketplaceOnboarding() {
 
             <div className="space-y-6">
               <FormField
-                label="Business Name"
+                label="Marketplace Name"
                 type="text"
-                value={formData.businessName}
-                onChange={(value: string) => updateFormData('businessName', value)}
+                value={formData.marketplaceName}
+                onChange={(value: string) => updateFormData('marketplaceName', value)}
                 required
-                placeholder="Enter your business name"
+                placeholder="Enter your marketplace name"
               />
 
               <SelectField
-                label="Business Type"
-                value={formData.businessType}
-                onChange={(value) => updateFormData('businessType', value)}
+                label="Marketplace Type"
+                value={formData.marketplaceType}
+                onChange={(value) => updateFormData('marketplaceType', value)}
                 options={businessTypes.map(type => ({ value: type, label: type }))}
                 required
-                placeholder="Select business type"
+                placeholder="Select marketplace type"
               />
 
               <FormField
@@ -161,26 +183,61 @@ export default function MarketplaceOnboarding() {
                 placeholder="+1 (555) 123-4567"
               />
 
+              <FormField
+                label="Marketplace Description"
+                type="textarea"
+                value={formData.description}
+                onChange={(value: string) => updateFormData('description', value)}
+                placeholder="Describe what your marketplace offers..."
+              />
+
+              <FormField
+                label="Website (Optional)"
+                type="url"
+                value={formData.website}
+                onChange={(value: string) => updateFormData('website', value)}
+                placeholder="https://yourmarketplace.com"
+              />
+
+              {/* ENS Setup Prompt */}
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <h3 className="font-medium text-purple-900 mb-2">🌐 ENS Domain Setup</h3>
+                <p className="text-sm text-purple-800 mb-3">
+                  Consider registering an ENS domain for your marketplace like <strong>yourstore.eth</strong>
+                </p>
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                    Professional Identity
+                  </span>
+                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                    Easy to Remember
+                  </span>
+                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                    Decentralized
+                  </span>
+                </div>
+              </div>
+
               {/* Show PYUSD + Arbitrum info */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h3 className="font-medium text-blue-900 mb-2">💰 Powered by PYUSD on Arbitrum</h3>
                 <p className="text-sm text-blue-800">
                   Accept PayPal USD payments with fast, low-cost transactions on Arbitrum One. 
-                  More currencies and chains coming soon!
+                  Merchants will pay commission in PYUSD automatically via smart contracts.
                 </p>
               </div>
             </div>
 
             <div className="flex justify-between mt-8">
               <button
-                onClick={() => router.push('/onboarding/type')}
+                onClick={() => router.push('/role')}
                 className="px-6 py-2 text-gray-600 hover:text-gray-800 transition"
               >
                 ← Back
               </button>
               <button
                 onClick={() => setStep(2)}
-                disabled={!formData.businessName || !formData.businessType}
+                disabled={!formData.marketplaceName || !formData.marketplaceType}
                 className="px-8 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
               >
                 Continue
@@ -193,19 +250,16 @@ export default function MarketplaceOnboarding() {
   }
 
   if (step === 2) {
-    // Get available tokens for current chain
-    const availableTokens = getEnabledChainTokens(formData.chainPreference);
-    
     return (
       <main className="min-h-screen bg-gray-50 py-12">
         <div className="container mx-auto px-4 max-w-2xl">
           <div className="bg-white rounded-lg shadow-md p-8">
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Payment & Currency Settings
+                Commission & Payment Settings
               </h1>
               <p className="text-gray-600">
-                Configure payment currencies and smart contract escrow settings
+                Configure how you'll earn from your marketplace
               </p>
               <div className="flex items-center mt-4">
                 <div className="flex-1 bg-blue-600 h-2 rounded-full"></div>
@@ -270,32 +324,61 @@ export default function MarketplaceOnboarding() {
                     </div>
                   </div>
                 </div>
-                <p className="text-sm text-gray-500 mt-2">
-                  More stablecoins coming soon! Your marketplace will be ready for multi-currency support.
-                </p>
               </div>
 
-              {/* Platform Fee */}
+              {/* Commission Rate */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Platform Fee
+                  Commission Rate (% of each sale)
                 </label>
                 <div className="flex items-center space-x-4">
                   <input
                     type="range"
-                    min="100"
-                    max="500"
-                    step="25"
-                    value={formData.feeBps}
-                    onChange={(e) => updateFormData('feeBps', parseInt(e.target.value))}
+                    min="1"
+                    max="15"
+                    step="0.5"
+                    value={formData.commissionRate}
+                    onChange={(e) => updateFormData('commissionRate', parseFloat(e.target.value))}
                     className="flex-1"
                   />
                   <span className="text-lg font-medium w-20">
-                    {(formData.feeBps / 100).toFixed(2)}%
+                    {formData.commissionRate.toFixed(1)}%
                   </span>
                 </div>
                 <p className="text-sm text-gray-500 mt-1">
-                  This fee is automatically collected by the smart contract in {formData.preferredToken}
+                  Automatically collected by smart contract in {formData.preferredToken}
+                </p>
+                <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded">
+                  <p className="text-sm text-green-800">
+                    💰 Example: On a $100 sale, you earn ${(formData.commissionRate).toFixed(2)} in commission
+                  </p>
+                </div>
+              </div>
+
+              {/* Monthly Subscription Fee */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Monthly Merchant Fee (Optional)
+                </label>
+                <div className="flex items-center space-x-4">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value={formData.subscriptionFee}
+                    onChange={(e) => updateFormData('subscriptionFee', parseFloat(e.target.value))}
+                    className="flex-1"
+                  />
+                  <span className="text-lg font-medium w-20">
+                    ${formData.subscriptionFee.toFixed(0)}/mo
+                  </span>
+                </div>
+                <p className="text-sm text-gray-500 mt-1">
+                  {formData.subscriptionFee === 0 
+                    ? 'Free marketplace - earn only from commission' 
+                    : `Additional monthly revenue: $${formData.subscriptionFee}/merchant/month`
+                  }
                 </p>
               </div>
 
@@ -329,10 +412,10 @@ export default function MarketplaceOnboarding() {
                     onChange={(e) => updateFormData('autoRelease', e.target.checked)}
                     className="mr-3"
                   />
-                  <span className="font-medium">Auto-release escrow payments</span>
+                  <span className="font-medium">Enable automatic escrow release</span>
                 </label>
                 <p className="text-sm text-gray-500 mt-1 ml-6">
-                  Automatically release {formData.preferredToken} from escrow after delivery confirmation
+                  Automatically release {formData.preferredToken} from escrow after successful delivery
                 </p>
                 
                 {formData.autoRelease && (
@@ -382,10 +465,10 @@ export default function MarketplaceOnboarding() {
           <div className="bg-white rounded-lg shadow-md p-8">
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                API Integration & Webhooks
+                API Integration & Launch
               </h1>
               <p className="text-gray-600">
-                Set up developer tools for your marketplace (optional)
+                Final step - configure integrations and launch your marketplace
               </p>
               <div className="flex items-center mt-4">
                 <div className="flex-1 bg-blue-600 h-2 rounded-full"></div>
@@ -405,26 +488,46 @@ export default function MarketplaceOnboarding() {
               />
 
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <h3 className="font-medium text-green-900 mb-2">🎉 Your marketplace will get:</h3>
+                <h3 className="font-medium text-green-900 mb-2">🎉 Your marketplace will include:</h3>
                 <ul className="text-sm text-green-800 space-y-1">
-                  <li>• API keys for payment integration</li>
+                  <li>• API keys for merchant integration</li>
                   <li>• Real-time webhook notifications</li>
                   <li>• Smart contract escrow protection</li>
-                  <li>• {formData.preferredToken} payment processing</li>
-                  <li>• Multi-chain ready infrastructure</li>
+                  <li>• {formData.preferredToken} commission auto-collection</li>
+                  <li>• Multi-merchant dashboard</li>
+                  <li>• Dispute resolution system</li>
+                  <li>• ENS domain support</li>
                 </ul>
               </div>
 
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <h3 className="font-medium text-gray-900 mb-2">Summary:</h3>
+                <h3 className="font-medium text-gray-900 mb-2">Marketplace Summary:</h3>
                 <div className="text-sm text-gray-700 space-y-1">
-                  <p><strong>Business:</strong> {formData.businessName}</p>
-                  <p><strong>Type:</strong> {formData.businessType}</p>
+                  <p><strong>Name:</strong> {formData.marketplaceName}</p>
+                  <p><strong>Type:</strong> {formData.marketplaceType}</p>
                   <p><strong>Currency:</strong> {formData.preferredToken}</p>
-                  <p><strong>Platform Fee:</strong> {(formData.feeBps / 100).toFixed(2)}%</p>
+                  <p><strong>Commission:</strong> {formData.commissionRate}%</p>
+                  <p><strong>Monthly Fee:</strong> ${formData.subscriptionFee}/merchant</p>
                   <p><strong>Network:</strong> Arbitrum One</p>
                   <p><strong>Auto-release:</strong> {formData.autoRelease ? `${formData.autoReleaseHours}h` : 'Manual only'}</p>
+                  {formData.website && <p><strong>Website:</strong> {formData.website}</p>}
                 </div>
+              </div>
+
+              {/* ENS Registration Reminder */}
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <h3 className="font-medium text-purple-900 mb-2">🌐 Don't Forget ENS!</h3>
+                <p className="text-sm text-purple-800 mb-2">
+                  After launching, consider registering <strong>{formData.marketplaceName.toLowerCase().replace(/\s+/g, '')}.eth</strong>
+                </p>
+                <a 
+                  href="https://app.ens.domains" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-sm text-purple-700 underline hover:text-purple-900"
+                >
+                  Register ENS Domain →
+                </a>
               </div>
             </div>
 
@@ -440,7 +543,7 @@ export default function MarketplaceOnboarding() {
                 disabled={loading}
                 className="px-8 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:bg-gray-300 transition"
               >
-                {loading ? 'Creating Marketplace...' : 'Launch Marketplace'}
+                {loading ? 'Launching Marketplace...' : '🚀 Launch Marketplace'}
               </button>
             </div>
           </div>

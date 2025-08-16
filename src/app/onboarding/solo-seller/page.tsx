@@ -13,10 +13,15 @@ interface SoloSellerFormData {
   contactEmail: string;
   contactPhone: string;
   socialHandle: string; // Instagram, Twitter, etc.
+  description: string;
+  website: string;
   preferredToken: string;
   enableQRCodes: boolean;
   enablePaymentLinks: boolean;
+  enableInvoices: boolean;
+  enableListings: boolean;
   customMessage: string; // Message for payment requests
+  defaultPricing: number;
 }
 
 const sellerTypes = [
@@ -27,6 +32,10 @@ const sellerTypes = [
   'Consultant',
   'Service Provider',
   'Small Business Owner',
+  'Photographer',
+  'Writer/Blogger',
+  'Coach/Trainer',
+  'Musician',
   'Other'
 ];
 
@@ -42,13 +51,18 @@ export default function SoloSellerOnboarding() {
     contactEmail: '',
     contactPhone: '',
     socialHandle: '',
+    description: '',
+    website: '',
     preferredToken: DEFAULT_TOKEN_SYMBOL, // PYUSD
     enableQRCodes: true,
     enablePaymentLinks: true,
+    enableInvoices: true,
+    enableListings: false,
     customMessage: 'Payment for services',
+    defaultPricing: 50,
   });
 
-  const updateFormData = (field: keyof SoloSellerFormData, value: string | boolean) => {
+  const updateFormData = (field: keyof SoloSellerFormData, value: string | boolean | number) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -64,25 +78,42 @@ export default function SoloSellerOnboarding() {
     try {
       const token = localStorage.getItem('authToken');
       
-      const response = await fetch('/api/seller/create', {
+      const response = await fetch('/api/seller/create', { // ✅ Correct API endpoint
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          ...formData,
-          userType: 'seller'
+          displayName: formData.displayName,
+          sellerType: formData.sellerType,
+          contactEmail: formData.contactEmail,
+          contactPhone: formData.contactPhone,
+          socialHandle: formData.socialHandle,
+          description: formData.description,
+          website: formData.website,
+          preferredToken: formData.preferredToken,
+          enableQRCodes: formData.enableQRCodes,
+          enablePaymentLinks: formData.enablePaymentLinks,
+          enableInvoices: formData.enableInvoices,
+          enableListings: formData.enableListings,
+          customMessage: formData.customMessage,
+          defaultPricing: formData.defaultPricing,
+          userType: 'solo_seller' // ✅ Specific user type
         })
       });
 
       const data = await response.json();
 
       if (data.success) {
-        router.push('/dashboard/solo-seller');  // Changed from '/onboarding/solo-seller/success'
-        return;
+        // ✅ Store seller data for dashboard
+        localStorage.setItem('sellerData', JSON.stringify(data.seller));
+        localStorage.setItem('userType', 'solo_seller'); // ✅ Set user type
+        
+        // ✅ Redirect to solo seller dashboard
+        router.push('/dashboard/solo-seller');
       } else {
-        setError(data.error || 'Failed to create seller account');
+        setError(data.error || 'Failed to create solo seller account');
       }
     } catch (err) {
       setError('Network error. Please try again.');
@@ -103,7 +134,7 @@ export default function SoloSellerOnboarding() {
                   Set Up Your Solo Seller Profile
                 </h1>
                 <p className="text-gray-600">
-                  Get QR codes and payment links to accept PYUSD payments instantly
+                  Get QR codes, payment links, and invoices to accept PYUSD payments instantly
                 </p>
               </div>
               
@@ -129,7 +160,7 @@ export default function SoloSellerOnboarding() {
                 onChange={(value: string) => updateFormData('displayName', value)}
                 required
                 placeholder="How customers will see you"
-                helpText="This will appear on your payment requests"
+                helpText="This will appear on your payment requests and QR codes"
               />
 
               <SelectField
@@ -147,7 +178,7 @@ export default function SoloSellerOnboarding() {
                 value={formData.contactEmail}
                 onChange={(value: string) => updateFormData('contactEmail', value)}
                 placeholder="your@email.com"
-                helpText="For payment notifications and receipts"
+                helpText="For payment notifications and customer communication"
               />
 
               <FormField
@@ -159,27 +190,55 @@ export default function SoloSellerOnboarding() {
               />
 
               <FormField
-                label="Social Handle (Optional)"
+                label="Social Handle or Website (Optional)"
                 type="text"
                 value={formData.socialHandle}
                 onChange={(value: string) => updateFormData('socialHandle', value)}
-                placeholder="@yourusername or website"
-                helpText="Instagram, Twitter, or website for customers to find you"
+                placeholder="@yourusername or website.com"
+                helpText="Instagram, Twitter, LinkedIn, or personal website"
               />
+
+              <FormField
+                label="Description (Optional)"
+                type="textarea"
+                value={formData.description}
+                onChange={(value: string) => updateFormData('description', value)}
+                placeholder="Describe your services or what you sell..."
+                helpText="Helps customers understand what you offer"
+              />
+
+              {/* ENS Setup Prompt */}
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <h3 className="font-medium text-purple-900 mb-2">🌐 ENS Identity Setup</h3>
+                <p className="text-sm text-purple-800 mb-3">
+                  Get a professional ENS name like <strong>yourname.eth</strong> for easy payments and professional credibility
+                </p>
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                    Professional Identity
+                  </span>
+                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                    Easy Payments
+                  </span>
+                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                    Web3 Native
+                  </span>
+                </div>
+              </div>
 
               {/* PYUSD info */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h3 className="font-medium text-blue-900 mb-2">💰 Accept PYUSD Payments</h3>
                 <p className="text-sm text-blue-800">
                   Get paid instantly with PayPal USD. Your customers can pay from Venmo, PayPal, 
-                  or any crypto wallet with PYUSD.
+                  or any crypto wallet with PYUSD on Arbitrum.
                 </p>
               </div>
             </div>
 
             <div className="flex justify-between mt-8">
               <button
-                onClick={() => router.push('/onboarding/type')}
+                onClick={() => router.push('/role')}
                 className="px-6 py-2 text-gray-600 hover:text-gray-800 transition"
               >
                 ← Back
@@ -205,10 +264,10 @@ export default function SoloSellerOnboarding() {
           <div className="bg-white rounded-lg shadow-md p-8">
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Payment Methods
+                Payment Tools & Settings
               </h1>
               <p className="text-gray-600">
-                Choose how you want to accept payments from customers
+                Choose the tools you want for accepting payments from customers
               </p>
               <div className="flex items-center mt-4">
                 <div className="flex-1 bg-blue-600 h-2 rounded-full"></div>
@@ -219,14 +278,14 @@ export default function SoloSellerOnboarding() {
             </div>
 
             <div className="space-y-6">
-              {/* Payment Method Options */}
+              {/* Payment Tool Options */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Payment Collection Methods
+                  Payment Tools (Select all that apply)
                 </label>
                 
-                {/* QR Codes */}
                 <div className="space-y-4">
+                  {/* QR Codes */}
                   <label className="flex items-start p-4 border-2 border-blue-200 bg-blue-50 rounded-lg cursor-pointer">
                     <input
                       type="checkbox"
@@ -241,7 +300,7 @@ export default function SoloSellerOnboarding() {
                       </div>
                       <p className="text-sm text-blue-700">
                         Generate QR codes for customers to scan and pay instantly. 
-                        Perfect for in-person transactions or social media posts.
+                        Perfect for in-person transactions, social media posts, or printed materials.
                       </p>
                     </div>
                   </label>
@@ -265,7 +324,69 @@ export default function SoloSellerOnboarding() {
                       </p>
                     </div>
                   </label>
+
+                  {/* Invoices */}
+                  <label className="flex items-start p-4 border-2 border-purple-200 bg-purple-50 rounded-lg cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.enableInvoices}
+                      onChange={(e) => updateFormData('enableInvoices', e.target.checked)}
+                      className="mt-1 mr-3"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center mb-2">
+                        <span className="text-2xl mr-3">📄</span>
+                        <h3 className="font-medium text-purple-900">Professional Invoices</h3>
+                      </div>
+                      <p className="text-sm text-purple-700">
+                        Create professional invoices with payment links. 
+                        Perfect for freelancers and service providers.
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Product Listings */}
+                  <label className="flex items-start p-4 border-2 border-orange-200 bg-orange-50 rounded-lg cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.enableListings}
+                      onChange={(e) => updateFormData('enableListings', e.target.checked)}
+                      className="mt-1 mr-3"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center mb-2">
+                        <span className="text-2xl mr-3">🏷️</span>
+                        <h3 className="font-medium text-orange-900">Product Listings</h3>
+                      </div>
+                      <p className="text-sm text-orange-700">
+                        Create simple product listings with photos and descriptions. 
+                        Great for artists, creators, and small product sellers.
+                      </p>
+                    </div>
+                  </label>
                 </div>
+              </div>
+
+              {/* Default Pricing */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Default Service Price (USD)
+                </label>
+                <div className="flex items-center space-x-4">
+                  <span className="text-2xl">$</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10000"
+                    step="5"
+                    value={formData.defaultPricing}
+                    onChange={(e) => updateFormData('defaultPricing', parseFloat(e.target.value) || 0)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <p className="text-sm text-gray-500 mt-1">
+                  This will pre-fill your payment requests. You can always change it later.
+                </p>
               </div>
 
               {/* Custom Payment Message */}
@@ -298,20 +419,6 @@ export default function SoloSellerOnboarding() {
                   More currencies coming soon! USDC support will be added next.
                 </p>
               </div>
-
-              {/* Preview */}
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <h3 className="font-medium text-gray-900 mb-2">Preview:</h3>
-                <div className="text-sm text-gray-700">
-                  <p><strong>From:</strong> {formData.displayName || 'Your Name'}</p>
-                  <p><strong>Message:</strong> {formData.customMessage}</p>
-                  <p><strong>Payment Methods:</strong> 
-                    {formData.enableQRCodes && formData.enablePaymentLinks ? ' QR Code, Payment Link' :
-                     formData.enableQRCodes ? ' QR Code' :
-                     formData.enablePaymentLinks ? ' Payment Link' : ' None selected'}
-                  </p>
-                </div>
-              </div>
             </div>
 
             <div className="flex justify-between mt-8">
@@ -323,7 +430,7 @@ export default function SoloSellerOnboarding() {
               </button>
               <button
                 onClick={() => setStep(3)}
-                disabled={!formData.enableQRCodes && !formData.enablePaymentLinks}
+                disabled={!formData.enableQRCodes && !formData.enablePaymentLinks && !formData.enableInvoices && !formData.enableListings}
                 className="px-8 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
               >
                 Continue
@@ -342,10 +449,10 @@ export default function SoloSellerOnboarding() {
           <div className="bg-white rounded-lg shadow-md p-8">
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                You're All Set!
+                Your Solo Seller Profile is Ready!
               </h1>
               <p className="text-gray-600">
-                Review your seller profile and complete setup
+                Review your setup and complete your solo seller registration
               </p>
               <div className="flex items-center mt-4">
                 <div className="flex-1 bg-blue-600 h-2 rounded-full"></div>
@@ -357,14 +464,16 @@ export default function SoloSellerOnboarding() {
 
             <div className="space-y-6">
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <h3 className="font-medium text-green-900 mb-2">🎉 You'll be able to:</h3>
+                <h3 className="font-medium text-green-900 mb-2">🎉 Your solo seller toolkit includes:</h3>
                 <ul className="text-sm text-green-800 space-y-1">
                   {formData.enableQRCodes && <li>• Generate QR codes for instant payments</li>}
                   {formData.enablePaymentLinks && <li>• Create shareable payment links</li>}
+                  {formData.enableInvoices && <li>• Professional invoice generation</li>}
+                  {formData.enableListings && <li>• Simple product listing tools</li>}
                   <li>• Accept PYUSD from Venmo, PayPal, and crypto wallets</li>
-                  <li>• Get instant payment notifications</li>
-                  <li>• Track all your payment history</li>
-                  <li>• Set custom amounts and messages</li>
+                  <li>• Instant payment notifications and tracking</li>
+                  <li>• Customer payment history and analytics</li>
+                  <li>• ENS domain integration support</li>
                 </ul>
               </div>
 
@@ -374,22 +483,44 @@ export default function SoloSellerOnboarding() {
                   <p><strong>Display Name:</strong> {formData.displayName}</p>
                   <p><strong>Type:</strong> {formData.sellerType}</p>
                   <p><strong>Contact:</strong> {formData.contactEmail}</p>
-                  {formData.socialHandle && <p><strong>Social:</strong> {formData.socialHandle}</p>}
-                  <p><strong>Currency:</strong> PYUSD</p>
-                  <p><strong>Payment Methods:</strong> 
-                    {formData.enableQRCodes && formData.enablePaymentLinks ? ' QR Code + Payment Links' :
-                     formData.enableQRCodes ? ' QR Code' : ' Payment Links'}
+                  {formData.socialHandle && <p><strong>Social/Website:</strong> {formData.socialHandle}</p>}
+                  <p><strong>Currency:</strong> PYUSD on Arbitrum</p>
+                  <p><strong>Default Price:</strong> ${formData.defaultPricing}</p>
+                  <p><strong>Enabled Tools:</strong> 
+                    {[
+                      formData.enableQRCodes && 'QR Codes',
+                      formData.enablePaymentLinks && 'Payment Links', 
+                      formData.enableInvoices && 'Invoices',
+                      formData.enableListings && 'Listings'
+                    ].filter(Boolean).join(', ')}
                   </p>
                 </div>
               </div>
 
+              {/* ENS Registration Reminder */}
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <h3 className="font-medium text-purple-900 mb-2">🌐 Next Step: Get Your ENS Name!</h3>
+                <p className="text-sm text-purple-800 mb-2">
+                  Register <strong>{formData.displayName.toLowerCase().replace(/\s+/g, '')}.eth</strong> to make payments even easier for your customers
+                </p>
+                <a 
+                  href="https://app.ens.domains" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-sm text-purple-700 underline hover:text-purple-900"
+                >
+                  Register ENS Domain →
+                </a>
+              </div>
+
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="font-medium text-blue-900 mb-2">💡 Pro Tips:</h3>
+                <h3 className="font-medium text-blue-900 mb-2">💡 Solo Seller Pro Tips:</h3>
                 <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• Share your QR code on social media for easy payments</li>
+                  <li>• Add your QR code to business cards and social media</li>
                   <li>• Use payment links in your email signature</li>
-                  <li>• Customize payment messages for different services</li>
-                  <li>• All payments are secured on Arbitrum blockchain</li>
+                  <li>• Create professional invoices for larger projects</li>
+                  <li>• Share product listings on social platforms</li>
+                  <li>• All payments are secured by blockchain escrow</li>
                 </ul>
               </div>
             </div>
@@ -406,7 +537,7 @@ export default function SoloSellerOnboarding() {
                 disabled={loading}
                 className="px-8 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:bg-gray-300 transition"
               >
-                {loading ? 'Creating Profile...' : 'Complete Setup'}
+                {loading ? 'Creating Solo Seller Profile...' : '🚀 Launch Solo Seller Profile'}
               </button>
             </div>
           </div>
