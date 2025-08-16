@@ -1,7 +1,6 @@
-// src/app/receipts/[id]/page.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 
 type Receipt = {
@@ -24,7 +23,7 @@ function format(amount: string, decimals: number) {
   return b ? `${a}.${b}` : a;
 }
 
-export default function ReceiptPage() {
+function ReceiptContent() {
   const { id } = useParams<{ id: string }>();
   const qs = useSearchParams();
   const demo = qs.get('demo') === '1';
@@ -60,8 +59,8 @@ export default function ReceiptPage() {
         if (!res.ok) throw new Error(`Receipt fetch failed: ${res.status}`);
         const json: Receipt = await res.json();
         if (!cancelled) setData(json);
-      } catch (e: any) {
-        if (!cancelled) setErr(e.message ?? 'Unknown error');
+      } catch (e: unknown) {
+        if (!cancelled) setErr((e as Error).message ?? 'Unknown error');
       }
     }
 
@@ -125,5 +124,13 @@ export default function ReceiptPage() {
         Tip: append <code>?demo=1</code> to this URL to test without a backend.
       </p>
     </main>
+  );
+}
+
+export default function ReceiptPage() {
+  return (
+    <Suspense fallback={<main className="mx-auto max-w-xl p-6">Loading receipt…</main>}>
+      <ReceiptContent />
+    </Suspense>
   );
 }
