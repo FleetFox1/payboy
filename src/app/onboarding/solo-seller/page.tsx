@@ -79,7 +79,8 @@ export default function SoloSellerOnboarding() {
       const data = await response.json();
 
       if (data.success) {
-        router.push('/onboarding/success?type=seller');
+        router.push('/dashboard/solo-seller');  // Changed from '/onboarding/solo-seller/success'
+        return;
       } else {
         setError(data.error || 'Failed to create seller account');
       }
