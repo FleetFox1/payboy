@@ -11,21 +11,32 @@ export default function StoreOnboardingPage() {
   const [transactions, setTransactions] = useState<any[]>([]);
 
   useEffect(() => {
+    // Check if user is authenticated first
     if (!authenticated) {
-      const savedRole = localStorage.getItem('selectedRole');
-      if (savedRole) {
-        router.replace(`/onboarding/${savedRole}`);
-      } else {
-        router.replace('/role');
-      }
-    } else {
-      // Simulated data for testing
-      setBalance(120.5);
-      setTransactions([
-        { id: 'tx1', type: 'Payment Received', amount: 40.0, date: '2025-08-15' },
-        { id: 'tx2', type: 'Withdrawal', amount: -20.0, date: '2025-08-14' },
-      ]);
+      router.replace('/role');
+      return;
     }
+
+    // Check if user has selected a role
+    const savedRole = localStorage.getItem('selectedRole');
+
+    if (savedRole === 'store') {
+      router.replace('/onboarding/store');
+    } else if (savedRole === 'solo-seller') {
+      router.replace('/onboarding/solo-seller');
+    } else if (savedRole === 'marketplace') {
+      router.replace('/onboarding/marketplace');
+    } else {
+      // No role selected, send to role selection
+      router.replace('/role');
+    }
+
+    // Simulated data for testing
+    setBalance(120.5);
+    setTransactions([
+      { id: 'tx1', type: 'Payment Received', amount: 40.0, date: '2025-08-15' },
+      { id: 'tx2', type: 'Withdrawal', amount: -20.0, date: '2025-08-14' },
+    ]);
   }, [authenticated, router]);
 
   if (!authenticated) return null;
