@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+/contracts/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -39,3 +40,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# hardhat
+/contracts/artifacts
+/contracts/cache
+/contracts/typechain-types
+
+# optional: local db/cache
+*.sqlite
