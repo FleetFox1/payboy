@@ -12,7 +12,7 @@ export async function connectToDatabase() {
   const uri = process.env.MONGODB_URI!;
   client = new MongoClient(uri);
   await client.connect();
-  db = client.db();
+  db = client.db(getDatabaseName());
 
   return { client, db };
 }
@@ -36,6 +36,7 @@ export async function connectToMongoDB() {
 export function getDatabaseName(): string {
   const uri = process.env.MONGODB_URI!;
   const dbName = uri.split('/').pop()?.split('?')[0];
+  console.log('Using database:', dbName);
   return dbName || 'payboy';
 }
 

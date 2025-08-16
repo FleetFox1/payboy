@@ -1,14 +1,24 @@
-export default function Page() {
+'use client'
+import { useState } from 'react'
+import AuthModal from '@/components/AuthModal'
+
+export default function LandingPage() {
+  const [modalOpen, setModalOpen] = useState(false)
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center">
-      <h1 className="text-4xl font-bold">Welcome to PayBoy 💳</h1>
-      <p className="mt-4 text-gray-600">Your Web3 payments made simple.</p>
-      <a
-        href="/role"    // ← changed from /onboarding to /role
-        className="mt-6 rounded-lg bg-blue-600 px-4 py-2 text-white"
+    <main className="min-h-screen flex flex-col items-center justify-center px-4 text-center">
+      <h1 className="text-5xl font-bold mb-4">Welcome to PayBoy</h1>
+      <p className="text-gray-600 text-lg mb-6">
+        The fastest way to onboard and pay creators, sellers, and platforms.
+      </p>
+      <button
+        onClick={() => setModalOpen(true)}
+        className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition"
       >
         Get Started
-      </a>
+      </button>
+
+      <AuthModal open={modalOpen} onClose={() => setModalOpen(false)} />
     </main>
   )
 }
