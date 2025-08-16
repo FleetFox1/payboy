@@ -6,16 +6,15 @@ import { useState, useEffect } from 'react'
 type BusinessType = 'solo' | 'store' | 'marketplace'
 
 const OPTIONS: Array<{ key: BusinessType; title: string; desc: string; emoji: string }> = [
-  { key: 'solo',         title: 'Solo Seller',            desc: 'Just you selling services or one-off items.',                       emoji: '🧑‍💻' },
-  { key: 'store',        title: 'Store',                  desc: 'A single brand/shop with multiple products.',                       emoji: '🏬'   },
-  { key: 'marketplace',  title: 'Marketplace / Platform', desc: 'You host buyers and sellers; platform fees optional.',             emoji: '🌐'   },
+  { key: 'solo',         title: 'Solo Seller',            desc: 'Just you selling services or one-off items.',           emoji: '🧑‍💻' },
+  { key: 'store',        title: 'Store',                  desc: 'A single brand/shop with multiple products.',           emoji: '🏬'   },
+  { key: 'marketplace',  title: 'Marketplace / Platform', desc: 'You host buyers and sellers; platform fees optional.', emoji: '🌐'   },
 ]
 
 export default function RolePage() {
   const router = useRouter()
   const [choice, setChoice] = useState<BusinessType | null>(null)
 
-  // Hydrate any previous selection (from localStorage)
   useEffect(() => {
     const saved = (typeof window !== 'undefined' && localStorage.getItem('pb.businessType')) as BusinessType | null
     if (saved) setChoice(saved)
@@ -23,9 +22,16 @@ export default function RolePage() {
 
   function saveAndContinue() {
     if (!choice) return
-    // Persist locally for now. (Backend sync can happen after Privy login.)
     localStorage.setItem('pb.businessType', choice)
-    router.push('/onboarding') // next step: wallet connect
+
+    // Redirect to the proper onboarding page
+    const routeMap: Record<BusinessType, string> = {
+      solo: 'solo-seller',
+      store: 'store',
+      marketplace: 'marketplace'
+    }
+
+    router.push(`/onboarding/${routeMap[choice]}`)
   }
 
   return (
