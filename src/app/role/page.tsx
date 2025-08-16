@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import ENSAddress from '@/components/ENSAddress'
 
 type BusinessType = 'solo' | 'store' | 'marketplace'
 
@@ -36,9 +37,29 @@ export default function RolePage() {
 
   return (
     <main className="mx-auto max-w-3xl p-6">
+      {/* ENS Testing Section - Remove after testing */}
+      <div className="mb-8 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <h3 className="font-medium text-yellow-900 mb-3">🧪 ENS Resolution Test</h3>
+        <div className="space-y-2 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <p className="text-yellow-800 font-medium">vitalik.eth:</p>
+              <ENSAddress address="0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045" />
+            </div>
+            <div>
+              <p className="text-yellow-800 font-medium">Random address:</p>
+              <ENSAddress address="0x225f137127d9067788314bc7fcc1f36746a3c3B5" />
+            </div>
+          </div>
+          <p className="text-xs text-yellow-600 mt-2">
+            Check browser console for ENS resolution logs. Remove this section after testing.
+          </p>
+        </div>
+      </div>
+
       <h1 className="text-3xl font-bold text-center">What type of account are you setting up?</h1>
       <p className="mt-2 text-center text-gray-600">
-        Pick the option that best matches how you’ll accept payments.
+        Pick the option that best matches how you'll accept payments.
       </p>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-3">
