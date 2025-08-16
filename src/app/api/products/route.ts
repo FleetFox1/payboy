@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
+export type Product = {
+  id: string;
+  name: string;
+  description: string;
+  price: string;
+  imageUrl: string | null;
+  createdAt: string;
+};
+
 const ProductFormSchema = z.object({
   name: z.string().min(1, "Product name is required"),
   description: z.string().optional(),
@@ -9,7 +18,7 @@ const ProductFormSchema = z.object({
 });
 
 // Mock data storage (replace with real DB later)
-let mockProducts: any[] = [
+let mockProducts: Product[] = [
   {
     id: '1',
     name: 'Sample T-Shirt',
@@ -40,7 +49,7 @@ export async function POST(request: Request) {
 
     const validatedForm = ProductFormSchema.parse(rawFormData);
 
-    const product = {
+    const product: Product = {
       id: crypto.randomUUID(),
       name: validatedForm.name,
       description: validatedForm.description ?? '',
