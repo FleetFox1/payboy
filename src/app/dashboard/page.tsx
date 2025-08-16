@@ -7,22 +7,30 @@ import Link from 'next/link';
 export default function Dashboard() {
   const { authenticated, user, logout } = usePrivy();
   const [businessType, setBusinessType] = useState<string | null>(null);
+  const [onboarded, setOnboarded] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedType = localStorage.getItem('pb.businessType');
+      const onboardedFlag = localStorage.getItem('pb.hasOnboarded');
+
+      setBusinessType(savedType);
+      setOnboarded(!!onboardedFlag);
+
+      // Redirect if not onboarded
+      if (!onboardedFlag) {
+        window.location.href = '/onboarding';
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (!authenticated && typeof window !== 'undefined') {
-      // Redirect back to onboarding if not logged in
       window.location.href = '/onboarding';
     }
   }, [authenticated]);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('pb.businessType');
-      setBusinessType(saved);
-    }
-  }, []);
-
-  if (!authenticated) return null;
+  if (!authenticated || !onboarded) return null;
 
   return (
     <main className="mx-auto max-w-2xl p-6 space-y-6">
@@ -41,9 +49,9 @@ export default function Dashboard() {
 
       <div className="flex flex-col sm:flex-row gap-4">
         <Link href="/escrow/new">
-          <a className="rounded-md bg-blue-600 px-4 py-2 text-center text-white hover:bg-blue-700">
+          <button className="rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
             Create Escrow Link
-          </a>
+          </button>
         </Link>
 
         <button

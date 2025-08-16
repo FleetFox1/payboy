@@ -1,41 +1,68 @@
-'use client'
-import { usePrivy } from '@privy-io/react-auth'
+'use client';
 
-export default function Onboarding() {
-  const { login, authenticated, user, ready } = usePrivy()
+import { useEffect, useState } from 'react';
+import { usePrivy } from '@privy-io/react-auth';
+import { useRouter } from 'next/navigation';
 
-  if (!ready) {
-    return (
-      <main className="flex min-h-screen items-center justify-center">
-        <p>Loading…</p>
-      </main>
-    )
-  }
+export default function OnboardingPage() {
+  const { authenticated } = usePrivy();
+  const router = useRouter();
+  const [selectedRole, setSelectedRole] = useState<string | null>(null);
 
-  async function next() {
-    if (!authenticated) {
-      await login()
-      return
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const alreadyOnboarded = localStorage.getItem('pb.hasOnboarded');
+      if (alreadyOnboarded) {
+        router.push('/dashboard'); // skip if already done
+      }
     }
-    // TODO: POST /api/auth/privy-sync { email?, wallet: user?.wallet?.address }
-    window.location.href = '/dashboard'
-  }
+  }, []);
+
+  useEffect(() => {
+    if (!authenticated && typeof window !== 'undefined') {
+      router.push('/');
+    }
+  }, [authenticated]);
+
+  const handleContinue = () => {
+    if (selectedRole && typeof window !== 'undefined') {
+      localStorage.setItem('pb.businessType', selectedRole);
+      localStorage.setItem('pb.hasOnboarded', 'true');
+      router.push('/dashboard');
+    }
+  };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center">
-      <h1 className="text-2xl font-semibold mb-4">Onboarding</h1>
-      <button
-        onClick={next}
-        className="rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700"
-      >
-        {authenticated ? 'Continue' : 'Connect with Privy'}
-      </button>
+    <main className="mx-auto max-w-2xl p-6 space-y-6">
+      <h1 className="text-2xl font-bold">Choose Your Role</h1>
 
-      {authenticated && user?.wallet?.address && (
-        <p className="mt-3 text-sm text-gray-600">
-          Wallet: {user.wallet.address}
-        </p>
-      )}
+      <div className="flex flex-col gap-4">
+        {['Solo Seller', 'Store', 'Marketplace'].map((role) => (
+          <button
+            key={role}
+            className={`rounded-md border px-4 py-2 ${
+              selectedRole === role
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
+            }`}
+            onClick={() => setSelectedRole(role)}
+          >
+            {role}
+          </button>
+        ))}
+      </div>
+
+      <button
+        onClick={handleContinue}
+        disabled={!selectedRole}
+        className={`mt-4 rounded-md px-4 py-2 ${
+          selectedRole
+            ? 'bg-green-600 text-white hover:bg-green-700'
+            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+        }`}
+      >
+        Continue
+      </button>
     </main>
-  )
+  );
 }
