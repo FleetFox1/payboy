@@ -1,5 +1,5 @@
 // src/app/layout.tsx
-import '../globals.css';
+import './globals.css';
 import { Providers } from '../lib/privy';
 
 export const metadata = {
