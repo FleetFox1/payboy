@@ -11,28 +11,38 @@ export default function HomePage() {
   const router = useRouter();
   const [modalOpen, setModalOpen] = useState(false);
 
-  useEffect(() => {
-    // If user is already authenticated, redirect to dashboard
+  const handleGetStarted = () => {
     if (authenticated) {
+      // Only redirect when they click Get Started
       const userType = localStorage.getItem('userType');
       const onboardingComplete = localStorage.getItem('onboardingComplete');
       
       if (onboardingComplete && userType) {
-        // Redirect to appropriate dashboard
-        if (userType === 'store') {
-          router.push('/dashboard/store');
-        } else if (userType === 'solo-seller') {
-          router.push('/seller/dashboard');
-        } else if (userType === 'marketplace') {
-          router.push('/dashboard/marketplace');
-        } else {
-          router.push('/dashboard');
+        switch (userType) {
+          case 'store':
+            router.push('/dashboard/store');
+            break;
+          case 'solo-seller':
+            router.push('/seller/dashboard');
+            break;
+          case 'marketplace':
+            router.push('/dashboard/marketplace');
+            break;
+          default:
+            router.push('/dashboard');
         }
       } else {
         router.push('/role');
       }
+    } else {
+      // If not authenticated, trigger login
+      login();
     }
-  }, [authenticated, router]);
+  };
+
+  const scrollToSection = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
@@ -49,11 +59,17 @@ export default function HomePage() {
               </h1>
             </div>
             <div className="flex items-center space-x-4">
-              <a href="#features" className="text-gray-600 hover:text-gray-900 transition">Features</a>
-              <a href="#powered-by" className="text-gray-600 hover:text-gray-900 transition">Partners</a>
-              <a href="#pricing" className="text-gray-600 hover:text-gray-900 transition">Pricing</a>
+              <button onClick={() => scrollToSection('features')} className="text-gray-600 hover:text-gray-900 transition">
+                Features
+              </button>
+              <button onClick={() => scrollToSection('powered-by')} className="text-gray-600 hover:text-gray-900 transition">
+                Partners
+              </button>
+              <button onClick={() => scrollToSection('pricing')} className="text-gray-600 hover:text-gray-900 transition">
+                Pricing
+              </button>
               <button
-                onClick={login}
+                onClick={handleGetStarted}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
               >
                 Get Started
@@ -66,26 +82,24 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="py-20 px-6">
         <div className="container mx-auto max-w-6xl text-center">
-          <div className="mb-8">
-            <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-              Accept <span className="bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">PYUSD</span> Payments
-              <br />Instantly & Securely
-            </h1>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-              The easiest way to accept PayPal USD (PYUSD) payments on Arbitrum. 
-              Whether you're a store, individual seller, or marketplace - start accepting crypto payments in minutes.
-            </p>
-          </div>
+          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
+            Accept <span className="bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">PYUSD</span> Payments
+            <br />Instantly & Securely
+          </h1>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed mb-8">
+            The easiest way to accept PayPal USD (PYUSD) payments on Arbitrum. 
+            Whether you're a store, individual seller, or marketplace - start accepting crypto payments in minutes.
+          </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
             <button
-              onClick={login}
+              onClick={handleGetStarted}
               className="px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold text-lg"
             >
               🚀 Start Accepting PYUSD
             </button>
             <button
-              onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
+              onClick={() => scrollToSection('features')}
               className="px-8 py-4 border-2 border-gray-300 text-gray-700 rounded-lg hover:border-gray-400 transition font-semibold text-lg"
             >
               Learn More
@@ -139,7 +153,7 @@ export default function HomePage() {
                 <li>• Transaction history & reporting</li>
               </ul>
               <button
-                onClick={login}
+                onClick={handleGetStarted}
                 className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
               >
                 Set Up Store
@@ -160,7 +174,7 @@ export default function HomePage() {
                 <li>• Social media integration</li>
               </ul>
               <button
-                onClick={login}
+                onClick={handleGetStarted}
                 className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
               >
                 Start Selling
@@ -181,7 +195,7 @@ export default function HomePage() {
                 <li>• Analytics & reporting</li>
               </ul>
               <button
-                onClick={login}
+                onClick={handleGetStarted}
                 className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-medium"
               >
                 Launch Marketplace
@@ -473,7 +487,7 @@ export default function HomePage() {
             Join thousands of businesses already using PayBoy to accept fast, secure crypto payments.
           </p>
           <button
-            onClick={login}
+            onClick={handleGetStarted}
             className="px-12 py-4 bg-white text-blue-600 rounded-lg hover:bg-gray-100 transition font-bold text-xl"
           >
             🚀 Get Started Free
