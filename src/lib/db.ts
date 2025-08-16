@@ -1,82 +1,47 @@
-// --- Dev Notes ---
-// Database connection utility for PayBoy platform.
-// This module handles PostgreSQL connections and provides query helpers.
-// You can switch to any database (MySQL, SQLite, MongoDB) by updating this file.
+import { MongoClient, Db } from 'mongodb';
+import mongoose from 'mongoose';
 
-import { Pool } from 'pg';
+let client: MongoClient;
+let db: Db;
 
-// Database connection pool
-let pool: Pool | null = null;
-
-// Initialize database connection
-export async function getDb() {
-  if (!pool) {
-    pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-      max: 20,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
-    });
+export async function connectToDatabase() {
+  if (db) {
+    return { client, db };
   }
-  return pool;
+
+  const uri = process.env.MONGODB_URI!;
+  client = new MongoClient(uri);
+  await client.connect();
+  db = client.db();
+
+  return { client, db };
 }
 
-// Helper function to execute queries with error handling
-export async function executeQuery(query: string, params: any[] = []) {
-  try {
-    const db = await getDb();
-    const result = await db.query(query, params);
-    return result;
-  } catch (error) {
-    console.error('Database query error:', error);
-    throw error;
+// For Mongoose (easier models)
+export async function connectToMongoDB() {
+  if (mongoose.connections[0].readyState) {
+    return;
   }
-}
-
-// Helper function to execute transactions
-export async function executeTransaction(queries: { query: string; params: any[] }[]) {
-  const db = await getDb();
-  const client = await db.connect();
   
   try {
-    await client.query('BEGIN');
-    
-    const results = [];
-    for (const { query, params } of queries) {
-      const result = await client.query(query, params);
-      results.push(result);
-    }
-    
-    await client.query('COMMIT');
-    return results;
+    await mongoose.connect(process.env.MONGODB_URI!);
+    console.log('Connected to MongoDB');
   } catch (error) {
-    await client.query('ROLLBACK');
+    console.error('MongoDB connection error:', error);
     throw error;
-  } finally {
-    client.release();
   }
 }
 
-// Close database connections (useful for cleanup)
-export async function closeDb() {
-  if (pool) {
-    await pool.end();
-    pool = null;
-  }
+// Helper to get database name from connection string
+export function getDatabaseName(): string {
+  const uri = process.env.MONGODB_URI!;
+  const dbName = uri.split('/').pop()?.split('?')[0];
+  return dbName || 'payboy';
 }
 
-// Health check function
-export async function checkDbHealth() {
-  try {
-    const db = await getDb();
-    const result = await db.query('SELECT NOW()');
-    return { healthy: true, timestamp: result.rows[0].now };
-  } catch (error) {
-    console.error('Database health check failed:', error);
-    return { 
-      healthy: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
-    };
+// Close connection (useful for testing)
+export async function closeMongoDB() {
+  if (mongoose.connections[0].readyState) {
+    await mongoose.connection.close();
   }
 }
