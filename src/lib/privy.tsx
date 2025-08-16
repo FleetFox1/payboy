@@ -1,8 +1,9 @@
+// src/lib/privy.tsx
 'use client';
 
 import { PrivyProvider } from '@privy-io/react-auth';
 import { WagmiProvider } from 'wagmi';
-import { wagmiConfig } from './wagmi';
+import { wagmiConfig } from './wagmi'; // same folder as privy.tsx
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 
