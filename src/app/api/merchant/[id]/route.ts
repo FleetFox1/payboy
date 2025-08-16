@@ -16,6 +16,7 @@ const MerchantSchema = new mongoose.Schema({
   // Payment settings
   feeBps: { type: Number, default: 250 },
   chainPreference: { type: Number, default: 42161 },
+  preferredToken: { type: String, default: 'PYUSD' }, // Add this line
   
   // Escrow settings
   autoRelease: { type: Boolean, default: true },
@@ -73,6 +74,7 @@ export async function GET(
           businessPhone: merchant.businessPhone,
           feeBps: merchant.feeBps,
           chainPreference: merchant.chainPreference,
+          preferredToken: merchant.preferredToken, // Add this line
           autoRelease: merchant.autoRelease,
           autoReleaseHours: merchant.autoReleaseHours,
           webhookUrl: merchant.webhookUrl,
@@ -167,6 +169,7 @@ export async function PUT(
           businessPhone: updatedMerchant.businessPhone,
           feeBps: updatedMerchant.feeBps,
           chainPreference: updatedMerchant.chainPreference,
+          preferredToken: updatedMerchant.preferredToken, // Add this line
           autoRelease: updatedMerchant.autoRelease,
           autoReleaseHours: updatedMerchant.autoReleaseHours,
           webhookUrl: updatedMerchant.webhookUrl,

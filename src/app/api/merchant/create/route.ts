@@ -16,6 +16,7 @@ const MerchantSchema = new mongoose.Schema({
   // Payment settings
   feeBps: { type: Number, default: 250 }, // 2.5% default
   chainPreference: { type: Number, default: 42161 }, // Arbitrum One
+  preferredToken: { type: String, default: 'PYUSD' }, // Add preferred token
   
   // Escrow settings
   autoRelease: { type: Boolean, default: true },
@@ -71,6 +72,7 @@ export async function POST(req: NextRequest) {
         businessPhone,
         feeBps,
         chainPreference,
+        preferredToken, // Add this
         autoRelease,
         autoReleaseHours,
         webhookUrl
@@ -110,6 +112,7 @@ export async function POST(req: NextRequest) {
         businessPhone,
         feeBps: feeBps || 250,
         chainPreference: chainPreference || 42161,
+        preferredToken: preferredToken || 'PYUSD', // Add this
         autoRelease: autoRelease !== undefined ? autoRelease : true,
         autoReleaseHours: autoReleaseHours || 72,
         webhookUrl,
@@ -135,6 +138,7 @@ export async function POST(req: NextRequest) {
           businessType: newMerchant.businessType,
           feeBps: newMerchant.feeBps,
           chainPreference: newMerchant.chainPreference,
+          preferredToken: newMerchant.preferredToken, // Add this
           apiKey: newMerchant.apiKey, // Return API key for setup
           isActive: newMerchant.isActive,
           isVerified: newMerchant.isVerified,
