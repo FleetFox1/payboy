@@ -102,7 +102,7 @@ export default function StoreOnboarding() {
         const data = await response.json();
 
         if (data.success) {
-          router.push('/dashboard/store');  // Changed from '/onboarding/store/success'
+          router.push('/onboarding/store/success');
           return;
         } else {
           setError(data.error || 'Failed to create store account');
