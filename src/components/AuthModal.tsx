@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { usePrivy } from '@privy-io/react-auth'
 
@@ -11,9 +11,24 @@ export default function AuthModal({
   onClose: () => void
 }) {
   const router = useRouter()
-  const { login, logout, authenticated, getAccessToken, user } = usePrivy()
+  const { login, logout, authenticated, getAccessToken, user, ready } = usePrivy()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // Watch for authentication state changes after login
+  useEffect(() => {
+    console.log('🔍 AuthModal: Auth state changed')
+    console.log('🔍 AuthModal: Ready:', ready)
+    console.log('🔍 AuthModal: Authenticated:', authenticated)
+    console.log('🔍 AuthModal: User:', user)
+    console.log('🔍 AuthModal: Loading:', loading)
+    
+    // Only proceed if we're ready, authenticated, have a user, and are currently loading
+    if (ready && authenticated && user && loading) {
+      console.log('✅ AuthModal: All conditions met, proceeding with backend auth')
+      handleBackendAuth()
+    }
+  }, [ready, authenticated, user, loading])
 
   if (!open) return null
 
@@ -34,11 +49,86 @@ export default function AuthModal({
     }
   }
 
-  // Handle Privy authentication (supports both email and wallet)
-  async function handlePrivyAuth() {
+  // Handle the backend authentication after Privy login is complete
+  async function handleBackendAuth() {
+    try {
+      console.log('🔑 AuthModal: Getting access token...')
+      
+      const accessToken = await getAccessToken()
+      
+      if (!accessToken) {
+        console.error('❌ AuthModal: No access token received')
+        setError('Failed to get authentication token')
+        setLoading(false)
+        return
+      }
+
+      console.log('🎟️ AuthModal: ✅ Access token received')
+      console.log('📡 AuthModal: Calling backend /api/auth...')
+      
+      const response = await fetch('/api/auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          accessToken: accessToken 
+        })
+      })
+
+      console.log('📨 AuthModal: Backend response status:', response.status)
+      
+      let data
+      try {
+        data = await response.json()
+        console.log('📋 AuthModal: Backend response data:', data)
+      } catch (parseError) {
+        console.error('❌ AuthModal: Failed to parse backend response:', parseError)
+        setError('Invalid response from server')
+        setLoading(false)
+        return
+      }
+
+      if (data.success && data.token) {
+        // Store the JWT token
+        localStorage.setItem('authToken', data.token)
+        localStorage.setItem('userData', JSON.stringify(data.user))
+        
+        console.log('✅ AuthModal: Login successful!')
+        console.log('👤 AuthModal: User data:', data.user)
+        
+        onClose()
+        
+        // Redirect based on user type
+        if (data.user.userType === 'seller') {
+          console.log('🎯 AuthModal: Existing seller - redirecting to seller dashboard')
+          router.push('/seller/dashboard')
+        } else if (data.user.userType === 'merchant') {
+          console.log('🎯 AuthModal: Existing merchant - redirecting to merchant dashboard')
+          router.push('/merchant/dashboard')
+        } else if (data.user.userType === 'buyer' && data.user.onboardingCompleted) {
+          console.log('🎯 AuthModal: Existing buyer - redirecting to dashboard')
+          router.push('/dashboard')
+        } else {
+          console.log('🎯 AuthModal: New user - redirecting to role selection')
+          router.push('/role')
+        }
+      } else {
+        console.error('❌ AuthModal: Backend auth failed:', data.error)
+        setError(data.error || 'Authentication failed')
+      }
+    } catch (error) {
+      console.error('💥 AuthModal: Backend auth error:', error)
+      setError('Authentication failed. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Handle Privy login trigger
+  async function handlePrivyLogin() {
     console.log('🔍 AuthModal: Starting Privy login...')
     console.log('🔍 AuthModal: Currently authenticated?', authenticated)
-    console.log('🔍 AuthModal: Current user:', user)
     
     setLoading(true)
     setError('')
@@ -46,127 +136,23 @@ export default function AuthModal({
     try {
       console.log('📱 AuthModal: Calling Privy login()...')
       
-      // Trigger Privy login modal (user can choose email or wallet)
-      const loginResult = await login()
-      console.log('✅ AuthModal: Privy login result:', loginResult)
-      
-      // Wait a bit for Privy to update state
-      console.log('⏳ AuthModal: Waiting for Privy state to update...')
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      console.log('👤 AuthModal: User after delay:', user)
-      console.log('🔐 AuthModal: Authenticated after delay?', authenticated)
-      
-      // Get access token after login with retry logic
-      console.log('🔑 AuthModal: Getting access token with retry logic...')
-      let accessToken = null
-      let retries = 0
-      const maxRetries = 5
-      
-      while (!accessToken && retries < maxRetries) {
-        try {
-          console.log(`🔄 AuthModal: Attempt ${retries + 1}/${maxRetries} to get access token...`)
-          accessToken = await getAccessToken()
-          if (accessToken) {
-            console.log('🎟️ AuthModal: ✅ Access token received on attempt:', retries + 1)
-            console.log('🎟️ AuthModal: Token length:', accessToken.length)
-            break
-          } else {
-            console.log('⚠️ AuthModal: No token on attempt:', retries + 1)
-          }
-        } catch (tokenError) {
-          console.log('❌ AuthModal: Token error on attempt', retries + 1, ':', tokenError)
-        }
-        retries++
-        if (retries < maxRetries) {
-          console.log('⏳ AuthModal: Waiting 500ms before retry...')
-          await new Promise(resolve => setTimeout(resolve, 500))
-        }
+      // If already authenticated, proceed directly to backend auth
+      if (authenticated && user) {
+        console.log('✅ AuthModal: Already authenticated, proceeding to backend auth')
+        await handleBackendAuth()
+        return
       }
       
-      console.log('🎟️ AuthModal: Final access token status:', accessToken ? 'SUCCESS' : 'FAILED')
+      // Trigger Privy login modal
+      await login()
+      console.log('✅ AuthModal: Privy login modal completed')
       
-      if (accessToken) {
-        console.log('📡 AuthModal: Calling backend /api/auth...')
-        console.log('📤 AuthModal: Sending access token to backend (length: ' + accessToken.length + ')')
-        
-        // Call your backend auth endpoint
-        const response = await fetch('/api/auth', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
-            accessToken: accessToken 
-          })
-        })
-
-        console.log('📨 AuthModal: Backend response status:', response.status)
-        console.log('📨 AuthModal: Backend response headers:', Object.fromEntries(response.headers.entries()))
-        
-        let data
-        try {
-          data = await response.json()
-          console.log('📋 AuthModal: Backend response data:', data)
-        } catch (parseError) {
-          console.error('❌ AuthModal: Failed to parse backend response:', parseError)
-          setError('Invalid response from server')
-          return
-        }
-
-        if (data.success && data.token) {
-          // Store the JWT token
-          localStorage.setItem('authToken', data.token)
-          localStorage.setItem('userData', JSON.stringify(data.user))
-          
-          console.log('✅ AuthModal: Login successful!')
-          console.log('👤 AuthModal: User data:', data.user)
-          console.log('💾 AuthModal: JWT token stored in localStorage')
-          console.log('🏦 AuthModal: User wallet address:', data.user.walletAddress || 'Not found')
-          console.log('🔗 AuthModal: User account type:', data.user.privyAccountType || 'Not specified')
-          console.log('💰 AuthModal: Embedded wallet?', data.user.embeddedWallet ? 'Yes' : 'No')
-          
-          onClose()
-          
-          // Better redirect logic based on user type and setup status
-          if (data.user.userType === 'seller') {
-            console.log('🎯 AuthModal: Existing seller - redirecting to seller dashboard')
-            router.push('/seller/dashboard')
-          } else if (data.user.userType === 'merchant') {
-            console.log('🎯 AuthModal: Existing merchant - redirecting to merchant dashboard')
-            router.push('/merchant/dashboard')
-          } else if (data.user.userType === 'buyer' && data.user.onboardingCompleted) {
-            // Existing buyer who completed onboarding
-            console.log('🎯 AuthModal: Existing buyer with completed onboarding - redirecting to dashboard')
-            router.push('/dashboard')
-          } else {
-            // New user or hasn't completed role selection
-            console.log('🎯 AuthModal: New user or incomplete onboarding - redirecting to role selection')
-            console.log('🎯 AuthModal: User type:', data.user.userType, 'Onboarding completed:', data.user.onboardingCompleted)
-            router.push('/role')
-          }
-        } else {
-          console.error('❌ AuthModal: Backend auth failed')
-          console.error('❌ AuthModal: Backend error:', data.error)
-          console.error('❌ AuthModal: Backend success:', data.success)
-          console.error('❌ AuthModal: Backend token:', data.token ? 'Present' : 'Missing')
-          setError(data.error || 'Authentication failed')
-        }
-      } else {
-        console.error('❌ AuthModal: No access token received from Privy after', maxRetries, 'attempts')
-        console.error('❌ AuthModal: User state:', user)
-        console.error('❌ AuthModal: Authenticated state:', authenticated)
-        setError('Failed to get access token from Privy after multiple attempts. Please try again.')
-      }
+      // The useEffect hook will handle the rest when state updates
+      
     } catch (error) {
-      console.error('💥 AuthModal: Login error:', error)
-      if (error instanceof Error) {
-        console.error('💥 AuthModal: Error stack:', error.stack)
-      }
+      console.error('💥 AuthModal: Privy login error:', error)
       setError('Login failed. Please try again.')
-    } finally {
       setLoading(false)
-      console.log('🏁 AuthModal: Login process finished')
     }
   }
 
@@ -205,16 +191,11 @@ export default function AuthModal({
 
         {/* Login Button */}
         <button
-          onClick={() => {
-            console.log('🖱️ AuthModal: Login button clicked!')
-            console.log('🖱️ AuthModal: Current authenticated state:', authenticated)
-            console.log('🖱️ AuthModal: Current user:', user)
-            handlePrivyAuth()
-          }}
-          disabled={loading}
+          onClick={handlePrivyLogin}
+          disabled={loading || !ready}
           className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 transition mb-4"
         >
-          {loading ? 'Connecting...' : authenticated ? '🔄 Continue with Account' : '🚀 Sign In / Sign Up'}
+          {!ready ? 'Loading...' : loading ? 'Connecting...' : authenticated ? '🔄 Continue with Account' : '🚀 Sign In / Sign Up'}
         </button>
 
         {error && (
@@ -237,10 +218,12 @@ export default function AuthModal({
         {process.env.NODE_ENV === 'development' && (
           <div className="mt-4 p-2 bg-gray-100 rounded text-xs">
             <p><strong>Debug:</strong></p>
+            <p>Ready: {String(ready)}</p>
             <p>Authenticated: {String(authenticated)}</p>
             <p>User ID: {user?.id || 'None'}</p>
             <p>Email: {user?.email?.address || 'None'}</p>
             <p>Wallet: {user?.wallet?.address || 'None'}</p>
+            <p>Loading: {String(loading)}</p>
           </div>
         )}
       </div>
