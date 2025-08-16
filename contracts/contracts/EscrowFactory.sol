@@ -1,3 +1,9 @@
+// --- Dev Notes ---
+// - This factory deploys EscrowVault contracts using create2 for deterministic addresses.
+// - The vault implementation should be initialized after deployment.
+// - Consider access control for who can create escrows in production.
+// - Platform fee logic can be added to the vault or factory if needed.
+
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 

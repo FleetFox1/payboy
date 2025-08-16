@@ -1,3 +1,9 @@
+// --- Dev Notes ---
+// - This contract is intended to be deployed via a factory and initialized once.
+// - Only payer can fund. Only payee or arbiter can release. Refund allowed by payer, arbiter, or after deadline.
+// - Consider adding OpenZeppelin Ownable/Pausable/ReentrancyGuard for production security.
+// - Platform fee logic can be added if needed (see Escrow.sol for example).
+
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 

@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-contract MerchantRegistry {
+// --- OpenZeppelin security modules ---
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+/// @title MerchantRegistry Contract for PayBoy
+/// @notice Handles merchant registration and updates
+/// @dev Inherits OpenZeppelin Ownable for admin control
+contract MerchantRegistry is Ownable {
     struct Merchant {
         address owner;
         uint256 feeBps;
@@ -12,6 +18,10 @@ contract MerchantRegistry {
     mapping(address => Merchant) public merchants;
     event MerchantCreated(address indexed owner, uint256 feeBps, uint256 chainPref);
     event MerchantUpdated(address indexed owner, uint256 feeBps, uint256 chainPref);
+
+    // --- Dev Notes ---
+    // - Only the merchant (msg.sender) can create or update their own record.
+    // - Only the contract owner (platform) can add admin features if needed.
 
     function createMerchant(uint256 feeBps, uint256 chainPref) external {
         require(!merchants[msg.sender].exists, "Already registered");
@@ -30,4 +40,6 @@ contract MerchantRegistry {
         require(merchants[owner].exists, "Not registered");
         return merchants[owner];
     }
+
+    /// @notice (Optional) Add admin-only functions here using onlyOwner modifier
 }
