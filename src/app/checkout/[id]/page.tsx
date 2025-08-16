@@ -10,6 +10,7 @@ type Escrow = {
   amount: string; // smallest units
   payee: string;  // address or email
   chainId: number;
+  note?: string;
 };
 
 type FundIntent = {
@@ -51,13 +52,14 @@ export default function CheckoutPage() {
         setLoading(true); setErr(null);
 
         if (demo) {
-          // demo payload so page works without backend
+          // Demo payload so page works without backend
           const mock: Escrow = {
-            id,
+            id: id ?? 'demo-id',
             token: { address: '0xToken', symbol: 'USDC', decimals: 6 },
             amount: '2500000',
-            payee: '0xPayeeOrEmail',
+            payee: '0xABCD...1234',
             chainId: 42161,
+            note: 'Payment for July',
           };
           if (!cancelled) setEscrow(mock);
           return;
@@ -122,22 +124,24 @@ export default function CheckoutPage() {
 
   return (
     <main className="mx-auto max-w-xl p-6 space-y-6">
-      <h1 className="text-2xl font-semibold">Checkout</h1>
+      <h1 className="text-2xl font-bold">Escrow Checkout</h1>
 
       {loading && <p>Loading escrow…</p>}
       {err && <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700">{err}</div>}
       {escrow && (
-        <div className="space-y-3 rounded-md border p-4">
-          <div className="flex justify-between"><span>Amount</span><span className="font-medium">{human}</span></div>
-          <div className="flex justify-between"><span>Payee</span><span className="font-mono">{escrow.payee}</span></div>
-          <div className="flex justify-between"><span>Chain</span><span>{escrow.chainId}</span></div>
+        <div className="space-y-2 rounded-lg border p-4 bg-white shadow">
+          <p><strong>Escrow ID:</strong> {escrow.id}</p>
+          <p><strong>Amount:</strong> {human}</p>
+          <p><strong>Payee:</strong> {escrow.payee}</p>
+          <p><strong>Chain:</strong> {escrow.chainId}</p>
+          {escrow.note && <p><strong>Note:</strong> {escrow.note}</p>}
         </div>
       )}
 
       {!intent && escrow && (
         <button
           onClick={getIntent}
-          className="rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+          className="w-full rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
         >
           Continue
         </button>
@@ -149,7 +153,7 @@ export default function CheckoutPage() {
             <button
               disabled={step !== 'idle'}
               onClick={doApprove}
-              className={`rounded-md px-4 py-2 text-white ${step==='idle' ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-400'}`}
+              className={`w-full rounded-md px-4 py-2 text-white ${step==='idle' ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-400'}`}
             >
               {step==='approving' ? 'Approving…' : 'Approve'}
             </button>
@@ -157,7 +161,7 @@ export default function CheckoutPage() {
           <button
             disabled={step!=='idle'}
             onClick={doFund}
-            className={`rounded-md px-4 py-2 text-white ${step==='idle' ? 'bg-green-600 hover:bg-green-700' : 'bg-green-400'}`}
+            className={`w-full rounded-md px-4 py-2 text-white ${step==='idle' ? 'bg-green-600 hover:bg-green-700' : 'bg-green-400'}`}
           >
             {step==='funding' ? 'Funding…' : 'Fund'}
           </button>
