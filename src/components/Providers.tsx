@@ -15,7 +15,3 @@ export function Providers({ children }: { children: ReactNode }) {
     </PrivyProvider>
   );
 }
-<<<<<<<< HEAD:src/lib/privy.tsx
-
-========
->>>>>>>> dd3e7b68b463e2ca0484bb9c9af90ec14f9d3b31:src/components/Providers.tsx
