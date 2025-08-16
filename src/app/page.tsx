@@ -2,18 +2,13 @@
 
 import { usePrivy } from '@privy-io/react-auth';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-
-import AuthModal from '@/components/AuthModal';
 
 export default function HomePage() {
   const { authenticated, login } = usePrivy();
   const router = useRouter();
-  const [modalOpen, setModalOpen] = useState(false);
 
   const handleGetStarted = () => {
     if (authenticated) {
-      // Only redirect when they click Get Started
       const userType = localStorage.getItem('userType');
       const onboardingComplete = localStorage.getItem('onboardingComplete');
       
@@ -35,13 +30,15 @@ export default function HomePage() {
         router.push('/role');
       }
     } else {
-      // If not authenticated, trigger login
       login();
     }
   };
 
   const scrollToSection = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   return (
@@ -61,6 +58,9 @@ export default function HomePage() {
             <div className="flex items-center space-x-4">
               <button onClick={() => scrollToSection('features')} className="text-gray-600 hover:text-gray-900 transition">
                 Features
+              </button>
+              <button onClick={() => scrollToSection('payment-methods')} className="text-gray-600 hover:text-gray-900 transition">
+                Payment Methods
               </button>
               <button onClick={() => scrollToSection('powered-by')} className="text-gray-600 hover:text-gray-900 transition">
                 Partners
@@ -83,12 +83,12 @@ export default function HomePage() {
       <section className="py-20 px-6">
         <div className="container mx-auto max-w-6xl text-center">
           <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-            Accept <span className="bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">PYUSD</span> Payments
+            Accept <span className="bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">Multiple Payment Types</span>
             <br />Instantly & Securely
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed mb-8">
-            The easiest way to accept PayPal USD (PYUSD) payments on Arbitrum. 
-            Whether you're a store, individual seller, or marketplace - start accepting crypto payments in minutes.
+            The easiest way to accept PYUSD, Email, PayPal, and Venmo payments. 
+            Whether you&apos;re a store, individual seller, or marketplace - start accepting payments in minutes.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
@@ -96,7 +96,7 @@ export default function HomePage() {
               onClick={handleGetStarted}
               className="px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold text-lg"
             >
-              🚀 Start Accepting PYUSD
+              🚀 Start Accepting Payments
             </button>
             <button
               onClick={() => scrollToSection('features')}
@@ -104,6 +104,34 @@ export default function HomePage() {
             >
               Learn More
             </button>
+          </div>
+
+          {/* Payment Method Indicators */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto mb-8">
+            <div className="flex flex-col items-center p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+              <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mb-2">
+                <span className="text-white font-bold">P</span>
+              </div>
+              <span className="text-sm font-medium text-gray-700">PYUSD</span>
+            </div>
+            <div className="flex flex-col items-center p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+              <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center mb-2">
+                <span className="text-white font-bold text-xs">PayPal</span>
+              </div>
+              <span className="text-sm font-medium text-gray-700">PayPal</span>
+            </div>
+            <div className="flex flex-col items-center p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+              <div className="w-12 h-12 bg-blue-400 rounded-lg flex items-center justify-center mb-2">
+                <span className="text-white font-bold text-xs">Venmo</span>
+              </div>
+              <span className="text-sm font-medium text-gray-700">Venmo</span>
+            </div>
+            <div className="flex flex-col items-center p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+              <div className="w-12 h-12 bg-gray-600 rounded-lg flex items-center justify-center mb-2">
+                <span className="text-white font-bold">@</span>
+              </div>
+              <span className="text-sm font-medium text-gray-700">Email</span>
+            </div>
           </div>
 
           {/* Trust Indicators */}
@@ -115,27 +143,117 @@ export default function HomePage() {
               <span className="text-gray-600">Arbitrum One</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold">P</span>
-              </div>
-              <span className="text-gray-600">PayPal USD</span>
-            </div>
-            <div className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
                 <span className="text-white font-bold">P</span>
               </div>
               <span className="text-gray-600">Privy Auth</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                <span className="text-white font-bold">M</span>
+              </div>
+              <span className="text-gray-600">MongoDB</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Payment Methods Section */}
+      <section id="payment-methods" className="py-16 px-6 bg-white">
+        <div className="container mx-auto max-w-6xl">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Multiple Payment Options</h2>
+            <p className="text-xl text-gray-600">Give your customers the freedom to pay how they want</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {/* PYUSD */}
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 text-center border border-blue-200">
+              <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <span className="text-white font-bold text-xl">P</span>
+              </div>
+              <h3 className="text-xl font-bold text-blue-900 mb-3">PayPal USD (PYUSD)</h3>
+              <p className="text-blue-700 text-sm mb-4">
+                Stablecoin payments on Arbitrum. Fast, secure, and low-cost crypto transactions.
+              </p>
+              <ul className="text-xs text-blue-800 space-y-1">
+                <li>• Instant settlement</li>
+                <li>• Low network fees</li>
+                <li>• Global accessibility</li>
+                <li>• Blockchain transparency</li>
+              </ul>
+            </div>
+
+            {/* PayPal */}
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 text-center border border-blue-200">
+              <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <span className="text-white font-bold text-sm">PayPal</span>
+              </div>
+              <h3 className="text-xl font-bold text-blue-900 mb-3">PayPal</h3>
+              <p className="text-blue-700 text-sm mb-4">
+                Traditional PayPal payments for customers who prefer familiar methods.
+              </p>
+              <ul className="text-xs text-blue-800 space-y-1">
+                <li>• Buyer protection</li>
+                <li>• Widely accepted</li>
+                <li>• Bank/card linking</li>
+                <li>• Dispute resolution</li>
+              </ul>
+            </div>
+
+            {/* Venmo */}
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 text-center border border-blue-200">
+              <div className="w-16 h-16 bg-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <span className="text-white font-bold text-sm">Venmo</span>
+              </div>
+              <h3 className="text-xl font-bold text-blue-900 mb-3">Venmo</h3>
+              <p className="text-blue-700 text-sm mb-4">
+                Social payments popular with younger demographics and casual transactions.
+              </p>
+              <ul className="text-xs text-blue-800 space-y-1">
+                <li>• Social features</li>
+                <li>• Mobile-first</li>
+                <li>• Instant transfers</li>
+                <li>• Popular with Gen Z</li>
+              </ul>
+            </div>
+
+            {/* Email */}
+            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 text-center border border-gray-200">
+              <div className="w-16 h-16 bg-gray-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <span className="text-white font-bold text-xl">@</span>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Email Payments</h3>
+              <p className="text-gray-700 text-sm mb-4">
+                Send payment requests directly to customer email addresses.
+              </p>
+              <ul className="text-xs text-gray-800 space-y-1">
+                <li>• No app required</li>
+                <li>• Universal access</li>
+                <li>• Payment reminders</li>
+                <li>• Track status</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="mt-12 text-center">
+            <div className="bg-green-50 border border-green-200 rounded-xl p-6 max-w-4xl mx-auto">
+              <h3 className="text-2xl font-bold text-green-900 mb-3">🎯 One Platform, All Payment Types</h3>
+              <p className="text-green-800">
+                Your customers can choose their preferred payment method while you manage everything from one dashboard. 
+                Crypto, traditional payments, and email requests - all in one place.
+              </p>
             </div>
           </div>
         </div>
       </section>
 
       {/* User Types */}
-      <section className="py-16 px-6 bg-white">
+      <section className="py-16 px-6 bg-gray-50">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">Built for Every Business</h2>
-            <p className="text-xl text-gray-600">Choose your setup and start accepting PYUSD payments today</p>
+            <p className="text-xl text-gray-600">Choose your setup and start accepting payments today</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -144,13 +262,13 @@ export default function HomePage() {
               <div className="text-6xl mb-4">🏪</div>
               <h3 className="text-2xl font-bold text-blue-900 mb-4">Physical Store</h3>
               <p className="text-blue-700 mb-6">
-                Generate QR codes for in-person payments. Perfect for retail stores, restaurants, and service businesses.
+                Generate QR codes for in-person payments. Accept PYUSD, PayPal, Venmo, and email payments.
               </p>
               <ul className="text-sm text-blue-800 space-y-2 mb-6">
-                <li>• Custom QR code generator</li>
-                <li>• Print-ready payment codes</li>
-                <li>• Real-time payment notifications</li>
-                <li>• Transaction history & reporting</li>
+                <li>• Multi-payment QR codes</li>
+                <li>• Print-ready materials</li>
+                <li>• Real-time notifications</li>
+                <li>• Transaction history</li>
               </ul>
               <button
                 onClick={handleGetStarted}
@@ -165,12 +283,12 @@ export default function HomePage() {
               <div className="text-6xl mb-4">👤</div>
               <h3 className="text-2xl font-bold text-green-900 mb-4">Solo Seller</h3>
               <p className="text-green-700 mb-6">
-                Sell individual items with instant payment links. Great for creators, freelancers, and individual sellers.
+                Send payment requests via email, PYUSD, PayPal, or Venmo. Perfect for freelancers and creators.
               </p>
               <ul className="text-sm text-green-800 space-y-2 mb-6">
-                <li>• Instant payment links</li>
+                <li>• Multi-payment links</li>
+                <li>• Email payment requests</li>
                 <li>• No monthly fees</li>
-                <li>• Built-in buyer protection</li>
                 <li>• Social media integration</li>
               </ul>
               <button
@@ -186,13 +304,13 @@ export default function HomePage() {
               <div className="text-6xl mb-4">🏬</div>
               <h3 className="text-2xl font-bold text-purple-900 mb-4">Marketplace</h3>
               <p className="text-purple-700 mb-6">
-                Create a platform where multiple sellers can list products and accept PYUSD payments.
+                Enable multiple sellers to accept all payment types on your platform with commission management.
               </p>
               <ul className="text-sm text-purple-800 space-y-2 mb-6">
-                <li>• Multi-vendor platform</li>
-                <li>• Commission-based revenue</li>
-                <li>• Seller management tools</li>
-                <li>• Analytics & reporting</li>
+                <li>• Multi-vendor payments</li>
+                <li>• Commission splitting</li>
+                <li>• Seller dashboards</li>
+                <li>• Platform analytics</li>
               </ul>
               <button
                 onClick={handleGetStarted}
@@ -206,7 +324,7 @@ export default function HomePage() {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-16 px-6 bg-gray-50">
+      <section id="features" className="py-16 px-6 bg-white">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">Why Choose PayBoy?</h2>
@@ -214,51 +332,51 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div className="bg-white rounded-xl p-6 shadow-sm border">
+            <div className="bg-gray-50 rounded-xl p-6 border">
               <div className="text-4xl mb-4">⚡</div>
               <h3 className="text-xl font-bold text-gray-900 mb-3">Lightning Fast</h3>
               <p className="text-gray-600">
-                Powered by Arbitrum One for instant, low-cost transactions. No more waiting for payment confirmations.
+                PYUSD on Arbitrum for instant crypto payments. PayPal/Venmo for traditional speed.
               </p>
             </div>
 
-            <div className="bg-white rounded-xl p-6 shadow-sm border">
+            <div className="bg-gray-50 rounded-xl p-6 border">
               <div className="text-4xl mb-4">🔒</div>
               <h3 className="text-xl font-bold text-gray-900 mb-3">Bank-Grade Security</h3>
               <p className="text-gray-600">
-                Built on Ethereum L2 with PayPal USD stablecoin. Your payments are secure and transparent.
+                Blockchain security for crypto. PayPal protection for traditional payments.
               </p>
             </div>
 
-            <div className="bg-white rounded-xl p-6 shadow-sm border">
+            <div className="bg-gray-50 rounded-xl p-6 border">
               <div className="text-4xl mb-4">💰</div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Low Fees</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Multiple Revenue Streams</h3>
               <p className="text-gray-600">
-                Minimal transaction costs on Arbitrum. Keep more of what you earn compared to traditional payment processors.
+                Accept crypto, traditional payments, and email requests. Never miss a sale.
               </p>
             </div>
 
-            <div className="bg-white rounded-xl p-6 shadow-sm border">
+            <div className="bg-gray-50 rounded-xl p-6 border">
               <div className="text-4xl mb-4">🌍</div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Global Reach</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Global & Local</h3>
               <p className="text-gray-600">
-                Accept payments from anywhere in the world. No borders, no currency conversion headaches.
+                PYUSD works globally. PayPal/Venmo for local customers. Email works everywhere.
               </p>
             </div>
 
-            <div className="bg-white rounded-xl p-6 shadow-sm border">
+            <div className="bg-gray-50 rounded-xl p-6 border">
               <div className="text-4xl mb-4">📱</div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Mobile Ready</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Customer Choice</h3>
               <p className="text-gray-600">
-                QR codes work with any smartphone. Your customers can pay instantly with their crypto wallets.
+                Let customers pay their way. QR codes, links, or email requests.
               </p>
             </div>
 
-            <div className="bg-white rounded-xl p-6 shadow-sm border">
+            <div className="bg-gray-50 rounded-xl p-6 border">
               <div className="text-4xl mb-4">🔧</div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Easy Setup</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Easy Integration</h3>
               <p className="text-gray-600">
-                Get started in minutes, not days. No technical knowledge required - we handle the blockchain complexity.
+                One dashboard for all payment types. No complex integrations or multiple platforms.
               </p>
             </div>
           </div>
@@ -266,61 +384,57 @@ export default function HomePage() {
       </section>
 
       {/* Powered By Section */}
-      <section id="powered-by" className="py-16 px-6 bg-white">
+      <section id="powered-by" className="py-16 px-6 bg-gray-50">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">Powered By Industry Leaders</h2>
             <p className="text-xl text-gray-600">Built on trusted, battle-tested infrastructure</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {/* PayPal USD */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
             <div className="text-center">
               <div className="w-20 h-20 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <span className="text-white font-bold text-2xl">P</span>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">PayPal USD</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">PayPal</h3>
               <p className="text-gray-600 text-sm">
-                Regulated stablecoin backed by PayPal. 1:1 USD backed with full reserve transparency.
+                Global leader in digital payments. PYUSD stablecoin and traditional PayPal/Venmo payments.
               </p>
             </div>
 
-            {/* Arbitrum */}
             <div className="text-center">
               <div className="w-20 h-20 bg-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <span className="text-white font-bold text-2xl">A</span>
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">Arbitrum One</h3>
               <p className="text-gray-600 text-sm">
-                Leading Ethereum Layer 2 solution. Fast, cheap, and secure transactions with Ethereum-level security.
+                Leading Ethereum Layer 2. Fast, cheap, and secure PYUSD transactions.
               </p>
             </div>
 
-            {/* Privy */}
             <div className="text-center">
               <div className="w-20 h-20 bg-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <span className="text-white font-bold text-2xl">P</span>
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">Privy</h3>
               <p className="text-gray-600 text-sm">
-                Simple wallet authentication. Connect with email, phone, or existing wallets like MetaMask.
+                Simple wallet authentication. Connect with email, phone, or existing wallets.
               </p>
             </div>
 
-            {/* Ethereum */}
             <div className="text-center">
               <div className="w-20 h-20 bg-gray-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <span className="text-white font-bold text-2xl">E</span>
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">Ethereum</h3>
               <p className="text-gray-600 text-sm">
-                World's most secure smart contract platform. Battle-tested infrastructure trusted by billions.
+                World&apos;s most secure smart contract platform. Foundation for PYUSD.
               </p>
             </div>
           </div>
 
           {/* Technology Stack */}
-          <div className="mt-16 bg-gradient-to-r from-gray-50 to-blue-50 rounded-2xl p-8">
+          <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-2xl p-8">
             <div className="text-center mb-8">
               <h3 className="text-2xl font-bold text-gray-900 mb-2">Our Technology Stack</h3>
               <p className="text-gray-600">Enterprise-grade tools for maximum reliability</p>
@@ -341,9 +455,9 @@ export default function HomePage() {
               </div>
               <div>
                 <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center mx-auto mb-2">
-                  <span className="text-white font-bold">S</span>
+                  <span className="text-white font-bold">M</span>
                 </div>
-                <p className="text-sm font-medium">Supabase</p>
+                <p className="text-sm font-medium">MongoDB</p>
               </div>
               <div>
                 <div className="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center mx-auto mb-2">
@@ -369,7 +483,7 @@ export default function HomePage() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-16 px-6 bg-gray-50">
+      <section id="pricing" className="py-16 px-6 bg-white">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">Simple, Transparent Pricing</h2>
@@ -385,7 +499,15 @@ export default function HomePage() {
               <ul className="space-y-3 mb-8">
                 <li className="flex items-center text-gray-600">
                   <span className="text-green-500 mr-3">✓</span>
+                  All payment methods
+                </li>
+                <li className="flex items-center text-gray-600">
+                  <span className="text-green-500 mr-3">✓</span>
                   Unlimited payment links
+                </li>
+                <li className="flex items-center text-gray-600">
+                  <span className="text-green-500 mr-3">✓</span>
+                  Email payment requests
                 </li>
                 <li className="flex items-center text-gray-600">
                   <span className="text-green-500 mr-3">✓</span>
@@ -394,10 +516,6 @@ export default function HomePage() {
                 <li className="flex items-center text-gray-600">
                   <span className="text-green-500 mr-3">✓</span>
                   Email support
-                </li>
-                <li className="flex items-center text-gray-600">
-                  <span className="text-green-500 mr-3">✓</span>
-                  Standard transaction fees only
                 </li>
               </ul>
             </div>
@@ -415,7 +533,11 @@ export default function HomePage() {
               <ul className="space-y-3 mb-8">
                 <li className="flex items-center text-gray-600">
                   <span className="text-green-500 mr-3">✓</span>
-                  Unlimited QR codes
+                  All payment methods
+                </li>
+                <li className="flex items-center text-gray-600">
+                  <span className="text-green-500 mr-3">✓</span>
+                  Multi-payment QR codes
                 </li>
                 <li className="flex items-center text-gray-600">
                   <span className="text-green-500 mr-3">✓</span>
@@ -444,6 +566,10 @@ export default function HomePage() {
               <ul className="space-y-3 mb-8">
                 <li className="flex items-center text-gray-600">
                   <span className="text-green-500 mr-3">✓</span>
+                  All payment methods
+                </li>
+                <li className="flex items-center text-gray-600">
+                  <span className="text-green-500 mr-3">✓</span>
                   Unlimited sellers
                 </li>
                 <li className="flex items-center text-gray-600">
@@ -452,7 +578,7 @@ export default function HomePage() {
                 </li>
                 <li className="flex items-center text-gray-600">
                   <span className="text-green-500 mr-3">✓</span>
-                  Seller dashboard
+                  Multi-vendor dashboards
                 </li>
                 <li className="flex items-center text-gray-600">
                   <span className="text-green-500 mr-3">✓</span>
@@ -468,11 +594,22 @@ export default function HomePage() {
 
           <div className="text-center mt-12">
             <p className="text-lg text-gray-600 mb-4">
-              💰 <strong>Only pay network fees:</strong> ~$0.01-0.05 per transaction on Arbitrum
+              💰 <strong>Payment Processing:</strong>
             </p>
-            <p className="text-gray-500">
-              No monthly fees, no setup costs, no hidden charges. Just fast, cheap PYUSD transactions.
-            </p>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 max-w-3xl mx-auto text-sm">
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <strong>PYUSD:</strong> ~$0.01-0.05 network fees
+              </div>
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <strong>PayPal:</strong> Standard PayPal rates
+              </div>
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <strong>Venmo:</strong> Standard Venmo rates
+              </div>
+              <div className="bg-green-50 p-3 rounded-lg">
+                <strong>Email:</strong> Free to send
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -481,10 +618,10 @@ export default function HomePage() {
       <section className="py-20 px-6 bg-gradient-to-r from-blue-600 to-green-600">
         <div className="container mx-auto max-w-4xl text-center">
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-            Ready to Accept PYUSD Payments?
+            Ready to Accept All Payment Types?
           </h2>
           <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            Join thousands of businesses already using PayBoy to accept fast, secure crypto payments.
+            Join businesses using PayBoy to accept PYUSD, PayPal, Venmo, and email payments all in one place.
           </p>
           <button
             onClick={handleGetStarted}
@@ -507,37 +644,40 @@ export default function HomePage() {
                 <span className="text-xl font-bold text-white">PayBoy</span>
               </div>
               <p className="text-gray-400">
-                The easiest way to accept PYUSD payments on Arbitrum.
+                Accept PYUSD, PayPal, Venmo, and email payments all in one platform.
               </p>
             </div>
             
             <div>
               <h4 className="text-white font-semibold mb-4">Product</h4>
               <ul className="space-y-2">
-                <li><a href="#features" className="hover:text-white transition">Features</a></li>
-                <li><a href="#pricing" className="hover:text-white transition">Pricing</a></li>
-                <li><a href="#" className="hover:text-white transition">Documentation</a></li>
-                <li><a href="#" className="hover:text-white transition">API Reference</a></li>
+                <li><button className="hover:text-white transition">Features</button></li>
+                <li><button className="hover:text-white transition">Payment Methods</button></li>
+                <li><button className="hover:text-white transition">Pricing</button></li>
+                <li><button className="hover:text-white transition">Documentation</button></li>
+                <li><button className="hover:text-white transition">API Reference</button></li>
               </ul>
             </div>
             
             <div>
               <h4 className="text-white font-semibold mb-4">Company</h4>
               <ul className="space-y-2">
-                <li><a href="#" className="hover:text-white transition">About</a></li>
-                <li><a href="#" className="hover:text-white transition">Blog</a></li>
-                <li><a href="#" className="hover:text-white transition">Careers</a></li>
-                <li><a href="#" className="hover:text-white transition">Contact</a></li>
+                <li><button className="hover:text-white transition">About</button></li>
+                <li><button className="hover:text-white transition">Blog</button></li>
+                <li><button className="hover:text-white transition">Careers</button></li>
+                <li><button className="hover:text-white transition">Contact</button></li>
+                <li><button className="hover:text-white transition">Press Kit</button></li>
               </ul>
             </div>
             
             <div>
               <h4 className="text-white font-semibold mb-4">Support</h4>
               <ul className="space-y-2">
-                <li><a href="#" className="hover:text-white transition">Help Center</a></li>
-                <li><a href="#" className="hover:text-white transition">Community</a></li>
-                <li><a href="#" className="hover:text-white transition">Status</a></li>
-                <li><a href="#" className="hover:text-white transition">Security</a></li>
+                <li><button className="hover:text-white transition">Help Center</button></li>
+                <li><button className="hover:text-white transition">Community</button></li>
+                <li><button className="hover:text-white transition">Status</button></li>
+                <li><button className="hover:text-white transition">Security</button></li>
+                <li><button className="hover:text-white transition">Privacy</button></li>
               </ul>
             </div>
           </div>
@@ -549,8 +689,6 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
-
-      <AuthModal open={modalOpen} onClose={() => setModalOpen(false)} />
     </main>
   );
 }
