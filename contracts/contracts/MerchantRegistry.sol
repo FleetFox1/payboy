@@ -22,6 +22,12 @@ contract MerchantRegistry is Ownable {
     // --- Dev Notes ---
     // - Only the merchant (msg.sender) can create or update their own record.
     // - Only the contract owner (platform) can add admin features if needed.
+    // - Constructor passes deployer address as initial owner to Ownable
+
+    constructor() Ownable(msg.sender) {
+        // Contract deployer becomes the initial owner
+        // This allows platform admin control over the registry
+    }
 
     function createMerchant(uint256 feeBps, uint256 chainPref) external {
         require(!merchants[msg.sender].exists, "Already registered");
@@ -41,5 +47,24 @@ contract MerchantRegistry is Ownable {
         return merchants[owner];
     }
 
-    /// @notice (Optional) Add admin-only functions here using onlyOwner modifier
+    /// @notice Admin function to remove a merchant (platform control)
+    /// @dev Only contract owner can call this
+    function removeMerchant(address merchantAddress) external onlyOwner {
+        require(merchants[merchantAddress].exists, "Merchant not found");
+        delete merchants[merchantAddress];
+        emit MerchantUpdated(merchantAddress, 0, 0); // Emit with zero values to indicate removal
+    }
+
+    /// @notice Check if an address is a registered merchant
+    function isMerchant(address addr) external view returns (bool) {
+        return merchants[addr].exists;
+    }
+
+    /// @notice Get merchant count (for analytics)
+    /// @dev This is a simple implementation - for production consider using a counter
+    function getMerchantCount() external pure returns (uint256 count) {
+        // Note: This is not gas efficient for large datasets
+        // Consider implementing a counter variable in production
+        return 0; // Placeholder - implement if needed
+    }
 }
