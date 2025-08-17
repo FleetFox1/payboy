@@ -131,7 +131,7 @@ export default function SoloSellerDashboard() {
     checkAuth();
   }, [authenticated, router, isClient]);
 
-  // ✅ Function to load user's listings
+  // ✅ Function to load user's listings - FIXED API ENDPOINT
   const loadUserListings = async () => {
     try {
       setLoadingListings(true);
@@ -164,7 +164,8 @@ export default function SoloSellerDashboard() {
 
       // Add user ID as URL parameter as fallback
       const userId = user?.id || 'demo-user';
-      const url = `/api/listing/get?userId=${encodeURIComponent(userId)}`;
+      // ✅ FIXED: Changed from /api/listing/get to /api/listings/get (plural)
+      const url = `/api/listings/get?userId=${encodeURIComponent(userId)}`;
       
       console.log('🌐 Fetching listings from:', url);
 
@@ -205,6 +206,24 @@ export default function SoloSellerDashboard() {
       setLoadingListings(false);
     }
   };
+
+  // ✅ Add a function to refresh listings after creating one
+  const refreshListings = async () => {
+    await loadUserListings();
+  };
+
+  // ✅ Add useEffect to listen for navigation/page focus to refresh listings
+  useEffect(() => {
+    const handleFocus = () => {
+      if (authenticated && isClient) {
+        console.log('🔄 Page focused, refreshing listings...');
+        loadUserListings();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [authenticated, isClient]);
 
   const loadSellerData = async () => {
     try {
@@ -555,7 +574,15 @@ export default function SoloSellerDashboard() {
         <h2 className="text-lg font-bold mb-4">💰 Start Selling</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <button
-            onClick={() => router.push('/seller/create-listing')}
+            onClick={async () => {
+              router.push('/seller/create-listing');
+              // Refresh listings when returning to dashboard
+              setTimeout(() => {
+                if (document.visibilityState === 'visible') {
+                  loadUserListings();
+                }
+              }, 1000);
+            }}
             className="bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-lg hover:from-green-600 hover:to-green-700 transition text-center"
           >
             <div className="text-2xl mb-2">📦</div>
@@ -592,16 +619,25 @@ export default function SoloSellerDashboard() {
         </div>
       </section>
 
-      {/* ✅ MY LISTINGS SECTION */}
+      {/* ✅ MY LISTINGS SECTION - ENHANCED WITH REFRESH BUTTON */}
       <section className="bg-white border rounded-lg p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold">📋 My Listings</h2>
-          <button
-            onClick={() => router.push('/seller/create-listing')}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm"
-          >
-            + Create Listing
-          </button>
+          <div className="flex space-x-2">
+            <button
+              onClick={loadUserListings}
+              disabled={loadingListings}
+              className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 text-sm disabled:opacity-50"
+            >
+              {loadingListings ? '⟳' : '🔄'} Refresh
+            </button>
+            <button
+              onClick={() => router.push('/seller/create-listing')}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm"
+            >
+              + Create Listing
+            </button>
+          </div>
         </div>
 
         {loadingListings ? (
