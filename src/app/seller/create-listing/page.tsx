@@ -40,7 +40,7 @@ export default function CreateListingPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/seller/create', {
+      const response = await fetch('/api/listings/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

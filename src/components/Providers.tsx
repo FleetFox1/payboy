@@ -2,11 +2,11 @@
 
 import { ReactNode, useEffect, useState } from 'react'
 import { PrivyProvider } from '@privy-io/react-auth'
-import { WagmiProvider } from '@privy-io/wagmi'
+import { WagmiProvider } from 'wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { http } from 'viem'
 import { arbitrum } from 'viem/chains'
-import { createConfig } from '@privy-io/wagmi'
+import { createConfig } from 'wagmi'
 
 const config = createConfig({
   chains: [arbitrum],
