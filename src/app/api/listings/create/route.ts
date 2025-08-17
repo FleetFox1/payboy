@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToMongoDB } from "@/lib/db";
 import { Listing } from "@/models/ListingsModel";
+import { nanoid } from 'nanoid'; 
 
 export async function POST(req: NextRequest) {
   try {
@@ -69,8 +70,23 @@ export async function POST(req: NextRequest) {
 
     console.log('🔄 DEMO MODE: Creating new listing...');
 
+    // Generate required fields
+    const listingId = nanoid(12); // Generates a unique 12-character ID
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${req.nextUrl.protocol}//${req.nextUrl.host}`;
+    const paymentUrl = `${baseUrl}/pay/${listingId}`;
+    
+    // Generate QR code data (for now, just the payment URL - you can enhance this later)
+    const qrCodeData = JSON.stringify({
+      listingId,
+      paymentUrl,
+      price,
+      title: title.substring(0, 50), // Truncate for QR code
+      timestamp: new Date().toISOString()
+    });
+
     // Create new listing using the model
     const newListing = new Listing({
+      listingId, // Now provided
       sellerId: 'demo-seller-' + Date.now(),
       userId: userId,
       title,
@@ -79,6 +95,8 @@ export async function POST(req: NextRequest) {
       category,
       images,
       paymentMethods,
+      paymentUrl, // Now provided
+      qrCodeData, // Now provided
       isActive: true,
       isVisible: true,
       views: 0,
