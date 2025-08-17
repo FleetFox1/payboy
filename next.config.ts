@@ -21,14 +21,14 @@ const nextConfig: NextConfig = {
         crypto: false,
         child_process: false,
         'fs/promises': false,
+        dns: false,
+        'timers/promises': false,
       };
     }
     return config;
   },
-  // Ensure MongoDB stays server-side only
-  experimental: {
-    serverComponentsExternalPackages: ['mongodb'],
-  },
+  // Updated for Next.js 15 - moved from experimental
+  serverExternalPackages: ['mongodb'],
 };
 
 export default nextConfig;
