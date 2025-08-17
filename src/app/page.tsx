@@ -1,37 +1,12 @@
 'use client';
 
 import { usePrivy } from '@privy-io/react-auth';
-import { useRouter } from 'next/navigation';
 
 export default function HomePage() {
-  const { authenticated, login } = usePrivy();
-  const router = useRouter();
+  const { login } = usePrivy();
 
   const handleGetStarted = () => {
-    if (authenticated) {
-      const userType = localStorage.getItem('userType');
-      const onboardingComplete = localStorage.getItem('onboardingComplete');
-      
-      if (onboardingComplete && userType) {
-        switch (userType) {
-          case 'store':
-            router.push('/dashboard/store');
-            break;
-          case 'solo-seller':
-            router.push('/seller/dashboard');
-            break;
-          case 'marketplace':
-            router.push('/dashboard/marketplace');
-            break;
-          default:
-            router.push('/dashboard');
-        }
-      } else {
-        router.push('/role');
-      }
-    } else {
-      login();
-    }
+    login();
   };
 
   const scrollToSection = (id: string) => {

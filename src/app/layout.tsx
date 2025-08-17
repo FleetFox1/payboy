@@ -1,10 +1,15 @@
 // src/app/layout.tsx
-import './globals.css';
-import { Providers } from '../lib/privy';
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import { Providers } from "./providers";
+import AuthRedirect from "@/components/AuthRedirect";
 
-export const metadata = {
-  title: 'PayBoy',
-  description: 'Your Web3 payments made simple.',
+const inter = Inter({ subsets: ["latin"] });
+
+export const metadata: Metadata = {
+  title: "PayBoy - Accept Multiple Payment Types",
+  description: "Accept PYUSD, PayPal, Venmo, and email payments all in one platform",
 };
 
 export default function RootLayout({
@@ -14,8 +19,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-gray-50 text-gray-900">
-        <Providers>{children}</Providers>
+      <body className={inter.className}>
+        <Providers>
+          <AuthRedirect />
+          {children}
+        </Providers>
       </body>
     </html>
   );
