@@ -188,7 +188,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// Helper function to calculate profile completion percentage
+// Helper to calculate profile completion percentage
 function calculateProfileCompletion(marketplace: any): number {
   const fields = [
     marketplace.marketplaceName,    // Required, should always be present
