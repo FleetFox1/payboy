@@ -7,6 +7,7 @@ import AuthRedirect from "../components/AuthRedirect";
 
 const inter = Inter({ subsets: ["latin"] })
 
+
 export const metadata: Metadata = {
   title: "PayBoy - Accept Multiple Payment Types",
   description: "Accept PYUSD, PayPal, Venmo, and email payments all in one platform",
