@@ -237,6 +237,7 @@ export default function StoreDashboard() {
             )}
           </div>
 
+
           <div>
             <p className="text-gray-600 text-sm">PYUSD Balance:</p>
             <p className="text-2xl font-semibold text-green-600">
