@@ -1,13 +1,20 @@
-// --- Dev Notes ---
-// - This contract is intended to be deployed via a factory and initialized once.
-// - Only payer can fund. Only payee or arbiter can release. Refund allowed by payer, arbiter, or after deadline.
-// - Consider adding OpenZeppelin Ownable/Pausable/ReentrancyGuard for production security.
-// - Platform fee logic can be added if needed (see Escrow.sol for example).
-
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+/*
+––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+📌 Dev Notes for EscrowVault
+––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+- This contract is intended to be deployed via a factory and initialized once.
+- Only payer can fund. Only payee or arbiter can release. 
+- Refund allowed by payer, arbiter, or after deadline.
+- Consider adding OpenZeppelin Ownable/Pausable/ReentrancyGuard for production security.
+- Platform fee logic can be added if needed (see Escrow.sol for example).
+- Tokens must be ERC20-compliant. Native ETH is not currently supported.
+––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+*/
 
 contract EscrowVault {
     enum Status { Created, Funded, Released, Refunded, Disputed, Resolved }
@@ -27,12 +34,29 @@ contract EscrowVault {
     event Disputed(address indexed by, string reason);
     event Resolved(bool released);
 
-    modifier onlyPayer() { require(msg.sender == payer, "Not payer"); _; }
-    modifier onlyPayee() { require(msg.sender == payee, "Not payee"); _; }
-    modifier onlyArbiter() { require(msg.sender == arbiter, "Not arbiter"); _; }
-    modifier onlyFactory() { require(msg.sender == factory, "Not factory"); _; }
+    modifier onlyPayer() {
+        require(msg.sender == payer, "Not payer");
+        _;
+    }
 
-    constructor() { factory = msg.sender; }
+    modifier onlyPayee() {
+        require(msg.sender == payee, "Not payee");
+        _;
+    }
+
+    modifier onlyArbiter() {
+        require(msg.sender == arbiter, "Not arbiter");
+        _;
+    }
+
+    modifier onlyFactory() {
+        require(msg.sender == factory, "Not factory");
+        _;
+    }
+
+    constructor() {
+        factory = msg.sender;
+    }
 
     function initialize(
         address _token,
@@ -56,13 +80,19 @@ contract EscrowVault {
         require(status == Status.Created, "Not fundable");
         require(msg.sender == payer, "Only payer");
         status = Status.Funded;
-        require(IERC20(token).transferFrom(msg.sender, address(this), amount), "Transfer failed");
+        require(
+            IERC20(token).transferFrom(msg.sender, address(this), amount),
+            "Transfer failed"
+        );
         emit Funded(msg.sender, amount);
     }
 
     function release() external {
         require(status == Status.Funded, "Not funded");
-        require(msg.sender == payee || msg.sender == arbiter, "Not allowed");
+        require(
+            msg.sender == payee || msg.sender == arbiter,
+            "Not allowed"
+        );
         status = Status.Released;
         require(IERC20(token).transfer(payee, amount), "Transfer failed");
         emit Released(payee, amount);
@@ -81,7 +111,10 @@ contract EscrowVault {
 
     function openDispute(string calldata reason) external {
         require(status == Status.Funded, "Not funded");
-        require(msg.sender == payer || msg.sender == payee, "Not allowed");
+        require(
+            msg.sender == payer || msg.sender == payee,
+            "Not allowed"
+        );
         status = Status.Disputed;
         emit Disputed(msg.sender, reason);
     }
@@ -89,6 +122,7 @@ contract EscrowVault {
     function arbiterResolve(bool _release) external onlyArbiter {
         require(status == Status.Disputed, "Not disputed");
         status = Status.Resolved;
+
         if (_release) {
             require(IERC20(token).transfer(payee, amount), "Transfer failed");
             emit Released(payee, amount);

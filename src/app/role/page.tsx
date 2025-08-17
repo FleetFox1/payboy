@@ -76,7 +76,7 @@ export default function RolePage() {
       </div>
 
       <p className="mt-4 text-center text-xs text-gray-500">
-        You can change this later in Settings.
+        You can change later in Settings.
       </p>
     </main>
   )
