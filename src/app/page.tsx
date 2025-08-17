@@ -4,10 +4,13 @@ import { usePrivy } from '@privy-io/react-auth';
 import Image from 'next/image';
 
 export default function HomePage() {
-  const { login } = usePrivy();
+  const { login, authenticated } = usePrivy();
 
   const handleGetStarted = () => {
-    login();
+    if (!authenticated) {
+      login();
+    }
+    // If already authenticated, do nothing (no redirect)
   };
 
   const scrollToSection = (id: string) => {
