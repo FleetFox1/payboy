@@ -1,6 +1,7 @@
 'use client';
 
 import { usePrivy } from '@privy-io/react-auth';
+import Image from 'next/image';
 
 export default function HomePage() {
   const { login } = usePrivy();
@@ -368,10 +369,16 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
             <div className="text-center">
-              <div className="w-20 h-20 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <span className="text-white font-bold text-2xl">P</span>
+              <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Image
+                  src="/PayPalUSD.logo.png"
+                  alt="PayPal USD"
+                  width={80}
+                  height={80}
+                  className="object-contain"
+                />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">PayPal</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">PayPal USD</h3>
               <p className="text-gray-600 text-sm">
                 Global leader in digital payments. PYUSD stablecoin and traditional PayPal/Venmo payments.
               </p>
@@ -398,12 +405,18 @@ export default function HomePage() {
             </div>
 
             <div className="text-center">
-              <div className="w-20 h-20 bg-gray-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <span className="text-white font-bold text-2xl">E</span>
+              <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Image
+                  src="/ENS.logo.png"
+                  alt="ENS"
+                  width={80}
+                  height={80}
+                  className="object-contain"
+                />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Ethereum</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">ENS Domains</h3>
               <p className="text-gray-600 text-sm">
-                World&apos;s most secure smart contract platform. Foundation for PYUSD.
+                Human-readable addresses. Send payments to yourname.eth instead of 0x123...
               </p>
             </div>
           </div>
