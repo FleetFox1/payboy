@@ -7,6 +7,8 @@ import { FormField } from '@/components/FormField';
 import { SelectField } from '@/components/SelectField';
 import { DEFAULT_CHAIN_ID } from '@/lib/chains';
 import { DEFAULT_TOKEN_SYMBOL } from '@/lib/token';
+import { usePrivyWallet } from '@/hooks/usePrivyWallet';
+import type { PrivyUser } from '@/types/privy';
 
 interface SoloSellerFormData {
   displayName: string;
@@ -42,7 +44,18 @@ const sellerTypes = [
 
 export default function SoloSellerOnboarding() {
   const router = useRouter();
-  const { user, getAccessToken, authenticated } = usePrivy();
+  const { user, getAccessToken, authenticated, ready: privyReady } = usePrivy();
+  
+  // ✅ Use your custom hook instead of useWallets directly
+  const { 
+    walletAddress, 
+    hasWallet, 
+    createWallet, 
+    ready: walletsReady, 
+    availableMethods,
+    walletInfo 
+  } = usePrivyWallet();
+  
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -65,28 +78,56 @@ export default function SoloSellerOnboarding() {
     defaultPricing: 50,
   });
 
+  // ✅ Typed user object
+  const typedUser = user as PrivyUser | null;
+
   // ✅ Only run on client side
   useEffect(() => {
     setIsClient(true);
   }, []);
 
+  // ✅ Auto-create embedded wallet if user has none
+  useEffect(() => {
+    if (!privyReady || !walletsReady) return;
+    if (!authenticated) return;
+
+    console.log('🔍 WALLET CHECK: Wallets ready, checking for wallet...');
+    console.log('🔍 WALLET CHECK: Has wallet:', hasWallet);
+    console.log('🔍 WALLET CHECK: Available methods:', availableMethods);
+
+    if (!hasWallet) {
+      console.log('🔄 WALLET CREATE: No wallets found, creating embedded wallet...');
+      
+      if (createWallet && typeof createWallet === 'function') {
+        createWallet().catch((e: unknown) => {
+          console.error('💥 WALLET CREATE: Failed to create embedded wallet:', e);
+          setError('Could not create your wallet. Please refresh and try again.');
+        });
+      } else {
+        console.warn('⚠️ createWallet method not available');
+        console.log('🔍 Available methods:', availableMethods);
+        setError('Wallet creation not supported. Please connect an external wallet.');
+      }
+    } else {
+      console.log('✅ WALLET CHECK: Wallet found:', walletAddress);
+    }
+  }, [privyReady, walletsReady, authenticated, hasWallet, createWallet, walletAddress, availableMethods]);
+
   const updateFormData = (field: keyof SoloSellerFormData, value: string | boolean | number) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  // ✅ Safe function to get localStorage value
+  // ✅ Safe localStorage functions
   const getStorageItem = (key: string): string | null => {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem(key);
   };
 
-  // ✅ Safe function to set localStorage value
   const setStorageItem = (key: string, value: string): void => {
     if (typeof window === 'undefined') return;
     localStorage.setItem(key, value);
   };
 
-  // ✅ Safe function to remove localStorage value
   const removeStorageItem = (key: string): void => {
     if (typeof window === 'undefined') return;
     localStorage.removeItem(key);
@@ -107,19 +148,21 @@ export default function SoloSellerOnboarding() {
       return;
     }
 
-    if (!user?.wallet?.address) {
+    if (!walletAddress) {
       console.error('❌ Solo Seller: No wallet address found');
-      setError('Wallet address required. Please connect your wallet.');
+      console.log('🔍 WALLET DEBUG: Has wallet:', hasWallet);
+      console.log('🔍 WALLET DEBUG: Wallet info:', walletInfo);
+      setError('No wallet found yet. Please wait a moment for your wallet to be created, then try again.');
       return;
     }
 
-    console.log('✅ Solo Seller: User authenticated with wallet:', user.wallet.address);
+    console.log('✅ Solo Seller: User authenticated with wallet:', walletAddress);
 
     setLoading(true);
     setError('');
 
     try {
-      // ✅ Safe localStorage access
+      // ✅ Get auth token
       let token = getStorageItem('authToken');
       console.log('🔐 Solo Seller: Token from localStorage:', token ? `${token.substring(0, 20)}...` : 'null');
       
@@ -147,6 +190,7 @@ export default function SoloSellerOnboarding() {
         return;
       }
 
+      // ✅ Prepare request data with typed user
       const requestData = {
         displayName: formData.displayName,
         sellerType: formData.sellerType,
@@ -163,10 +207,20 @@ export default function SoloSellerOnboarding() {
         customMessage: formData.customMessage,
         defaultPricing: formData.defaultPricing,
         userType: 'solo_seller',
-        walletAddress: user.wallet.address
+        walletAddress: walletAddress,
+        userId: typedUser?.id || 'unknown',
+        chainId: walletInfo?.chainId || '42161',
+        walletType: walletInfo?.type || 'privy'
       };
 
-      console.log('📦 Solo Seller: Request data prepared');
+      console.log('📦 Solo Seller: Request data prepared:', {
+        displayName: requestData.displayName,
+        sellerType: requestData.sellerType,
+        walletAddress: requestData.walletAddress,
+        userId: requestData.userId,
+        userType: requestData.userType
+      });
+
       console.log('🌐 Solo Seller: Making API request to /api/seller/create...');
       
       const response = await fetch('/api/seller/create', {
@@ -179,14 +233,26 @@ export default function SoloSellerOnboarding() {
       });
 
       console.log('📡 Solo Seller: API response status:', response.status);
+      console.log('📡 Solo Seller: API response headers:', Object.fromEntries(response.headers.entries()));
 
-      const data = await response.json();
-      console.log('📄 Solo Seller: API response data:', data);
+      // ✅ Handle response properly
+      let data;
+      try {
+        data = await response.json();
+        console.log('📄 Solo Seller: API response data:', data);
+      } catch (parseError) {
+        console.error('💥 Solo Seller: Failed to parse API response:', parseError);
+        const responseText = await response.text();
+        console.log('📄 Solo Seller: Raw API response:', responseText);
+        setError('Invalid response from server. Please try again.');
+        return;
+      }
 
       if (data.success) {
         console.log('✅ Solo Seller: Account created successfully!');
+        console.log('📊 Solo Seller: Created seller data:', data.seller);
         
-        // ✅ Safe localStorage access
+        // ✅ Save to localStorage
         setStorageItem('sellerData', JSON.stringify(data.seller));
         setStorageItem('userType', 'solo_seller');
         console.log('💾 Solo Seller: Data saved to localStorage');
@@ -195,6 +261,7 @@ export default function SoloSellerOnboarding() {
         router.push('/dashboard/solo-seller');
       } else {
         console.error('❌ Solo Seller: API returned error:', data.error);
+        console.log('🔍 Solo Seller: Full error response:', data);
         setError(data.error || 'Failed to create solo seller account');
         
         if (data.code === 'INVALID_TOKEN' || data.code === 'EXPIRED_TOKEN') {
@@ -203,13 +270,21 @@ export default function SoloSellerOnboarding() {
           setError('Session expired. Please refresh and try again.');
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('💥 Solo Seller: Network/submission error:', err);
+      console.log('🔍 Solo Seller: Error details:', {
+        message: err.message,
+        stack: err.stack,
+        name: err.name
+      });
       setError('Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
   };
+
+  // ✅ Check if submit should be disabled
+  const submitDisabled = loading || !privyReady || !walletsReady || !authenticated || !walletAddress;
 
   // ✅ Show loading until client-side hydration
   if (!isClient) {
@@ -253,15 +328,37 @@ export default function SoloSellerOnboarding() {
               </div>
             )}
 
-            {/* ✅ Safe debug info for development */}
+            {/* ✅ Enhanced debug info with typed data */}
             {process.env.NODE_ENV === 'development' && isClient && (
               <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <h4 className="font-medium text-yellow-900 mb-2">🔍 Debug Info:</h4>
-                <p className="text-xs text-yellow-800">
-                  Authenticated: {authenticated ? '✅' : '❌'} | 
-                  Wallet: {user?.wallet?.address ? `${user.wallet.address.substring(0, 8)}...` : '❌'} | 
-                  Token: {getStorageItem('authToken') ? '✅' : '❌'}
-                </p>
+                <div className="text-xs text-yellow-800 space-y-1">
+                  <p><strong>Privy Ready:</strong> {privyReady ? '✅' : '❌'}</p>
+                  <p><strong>Wallets Ready:</strong> {walletsReady ? '✅' : '❌'}</p>
+                  <p><strong>Authenticated:</strong> {authenticated ? '✅' : '❌'}</p>
+                  <p><strong>User ID:</strong> {typedUser?.id ? `${typedUser.id.substring(0, 12)}...` : '❌'}</p>
+                  <p><strong>Has Wallet:</strong> {hasWallet ? '✅' : '❌'}</p>
+                  <p><strong>Wallet Address:</strong> {walletAddress ? `${walletAddress.substring(0, 12)}...` : '❌'}</p>
+                  <p><strong>Wallet Type:</strong> {walletInfo?.type || '❌'}</p>
+                  <p><strong>Is Embedded:</strong> {walletInfo?.isEmbedded ? '✅' : '❌'}</p>
+                  <p><strong>Chain ID:</strong> {walletInfo?.chainId || '❌'}</p>
+                  <p><strong>Available Methods:</strong> {availableMethods.join(', ')}</p>
+                  <p><strong>CreateWallet Available:</strong> {createWallet ? '✅' : '❌'}</p>
+                  <p><strong>Auth Token:</strong> {getStorageItem('authToken') ? '✅' : '❌'}</p>
+                  <p><strong>Submit Ready:</strong> {!submitDisabled ? '✅' : '❌'}</p>
+                </div>
+              </div>
+            )}
+
+            {/* ✅ Wallet status indicator */}
+            {!walletAddress && authenticated && (
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
+                  <p className="text-blue-700 text-sm">
+                    {createWallet ? 'Creating your wallet...' : 'Wallet creation not available. Please connect an external wallet.'}
+                  </p>
+                </div>
               </div>
             )}
 
@@ -589,6 +686,7 @@ export default function SoloSellerOnboarding() {
                   {formData.socialHandle && <p><strong>Social/Website:</strong> {formData.socialHandle}</p>}
                   <p><strong>Currency:</strong> PYUSD on Arbitrum</p>
                   <p><strong>Default Price:</strong> ${formData.defaultPricing}</p>
+                  <p><strong>Wallet:</strong> {walletAddress ? `${walletAddress.substring(0, 8)}...${walletAddress.substring(walletAddress.length - 4)}` : 'Creating...'}</p>
                   <p><strong>Enabled Tools:</strong> 
                     {[
                       formData.enableQRCodes && 'QR Codes',
@@ -636,10 +734,12 @@ export default function SoloSellerOnboarding() {
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={loading}
+                disabled={submitDisabled}
                 className="px-8 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:bg-gray-300 transition"
               >
-                {loading ? 'Creating Solo Seller Profile...' : '🚀 Launch Solo Seller Profile'}
+                {loading ? 'Creating Solo Seller Profile...' : 
+                 !walletAddress ? 'Waiting for wallet...' :
+                 '🚀 Launch Solo Seller Profile'}
               </button>
             </div>
           </div>
