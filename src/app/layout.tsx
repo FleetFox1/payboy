@@ -1,16 +1,13 @@
-// src/app/layout.tsx
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+// ✅ REMOVE THIS LINE: import { Inter } from "next/font/google";
 import "./globals.css";
-import { Providers } from "../components/Providers";
-import AuthRedirect from "../components/AuthRedirect";
+import { Providers } from "@/components/Providers";
 
-const inter = Inter({ subsets: ["latin"] })
-
+// ✅ REMOVE THIS LINE: const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "PayBoy - Accept Multiple Payment Types",
-  description: "Accept PYUSD, PayPal, Venmo, and email payments all in one platform",
+  title: "PayBoy",
+  description: "Accept PYUSD, PayPal, Venmo, and email payments",
 };
 
 export default function RootLayout({
@@ -20,9 +17,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body> {/* ✅ REMOVE: className={inter.className} */}
         <Providers>
-          <AuthRedirect />
           {children}
         </Providers>
       </body>

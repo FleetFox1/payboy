@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToMongoDB } from "@/lib/db";
 import { MarketplaceModel } from "@/models/MarketplaceModel";
-import { verifyJWT } from "@/lib/auth";
 import mongoose from 'mongoose';
 import crypto from 'crypto';
 
-// Use the SAME User schema from your auth API
+// ✅ DEMO MODE: Same User schema from auth API
 const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   passwordHash: String,
@@ -54,38 +53,56 @@ const UserSchema = new mongoose.Schema({
 
 const UserModel = mongoose.models.User || mongoose.model('User', UserSchema);
 
+// ✅ DEMO MODE: Auth bypass utility (same as store route)
+function createDemoUser(req: NextRequest, body: any) {
+  console.log('🎭 DEMO MODE: Creating demo user for marketplace');
+  
+  const authHeader = req.headers.get('authorization');
+  let userId = body.userId || body.privyId;
+  
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    console.log('🎭 DEMO MODE: Found auth token, extracting user ID');
+    userId = userId || `user_${token.substring(0, 8)}`;
+  }
+  
+  userId = userId || `demo_marketplace_${Date.now()}`;
+  
+  const demoUser = {
+    id: userId,
+    privyId: userId,
+    email: body.email || `${userId}@demo.com`,
+    userType: 'marketplace_owner',
+    wallet: { address: body.walletAddress || `0x${Math.random().toString(16).substr(2, 40)}` }
+  };
+  
+  console.log('🎭 DEMO MODE: Created demo user:', { id: demoUser.id, email: demoUser.email });
+  return demoUser;
+}
+
 export async function POST(req: NextRequest) {
   try {
-    console.log('🏪 Marketplace Create API: Creating new marketplace...');
+    console.log('🚀 DEMO MODE: Starting marketplace creation (auth bypassed)');
     
-    // Get auth token
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Authorization token required' }, { status: 401 });
-    }
-
-    const token = authHeader.substring(7);
-    const decoded = await verifyJWT(token);
-    
-    if (!decoded || !decoded.userId) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-
-    console.log('✅ Marketplace Create API: Token verified for user:', decoded.userId);
-
     // Connect to database
     await connectToMongoDB();
 
     // Get request data
-    const marketplaceData = await req.json();
-    console.log('📋 Marketplace Create API: Marketplace data received:', {
-      marketplaceName: marketplaceData.marketplaceName,
-      marketplaceType: marketplaceData.marketplaceType,
-      commissionRate: marketplaceData.commissionRate
+    const body = await req.json();
+    console.log('📦 DEMO MODE: Request body received:', Object.keys(body));
+    
+    // ✅ DEMO MODE: Use demo user instead of JWT verification
+    const user = createDemoUser(req, body);
+    console.log('👤 DEMO MODE: Using demo user:', user.id);
+
+    console.log('📋 DEMO MODE: Marketplace data received:', {
+      marketplaceName: body.marketplaceName,
+      marketplaceType: body.marketplaceType,
+      commissionRate: body.commissionRate
     });
 
     // Validate required fields
-    if (!marketplaceData.marketplaceName || !marketplaceData.marketplaceType) {
+    if (!body.marketplaceName || !body.marketplaceType) {
       return NextResponse.json({ 
         error: 'Missing required fields',
         details: 'marketplaceName and marketplaceType are required'
@@ -93,26 +110,71 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate commission rate
-    if (marketplaceData.commissionRate && (marketplaceData.commissionRate < 0 || marketplaceData.commissionRate > 50)) {
+    if (body.commissionRate && (body.commissionRate < 0 || body.commissionRate > 50)) {
       return NextResponse.json({ 
         error: 'Invalid commission rate',
         details: 'Commission rate must be between 0% and 50%'
       }, { status: 400 });
     }
 
-    // Find the user
-    const user = await UserModel.findById(decoded.userId);
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // ✅ DEMO MODE: Check if marketplace already exists (allow updates)
+    const existingMarketplace = await MarketplaceModel.findOne({ userId: user.id });
+    if (existingMarketplace) {
+      console.log('🔄 DEMO MODE: Marketplace exists, updating instead of blocking');
+      
+      // Update existing marketplace
+      existingMarketplace.marketplaceName = body.marketplaceName;
+      existingMarketplace.marketplaceType = body.marketplaceType;
+      existingMarketplace.businessEmail = body.businessEmail || user.email;
+      existingMarketplace.businessPhone = body.businessPhone;
+      existingMarketplace.description = body.description;
+      existingMarketplace.website = body.website;
+      existingMarketplace.commissionRate = body.commissionRate || 2.5;
+      existingMarketplace.subscriptionFee = body.subscriptionFee || 0;
+      existingMarketplace.chainPreference = body.chainPreference || 42161;
+      existingMarketplace.preferredToken = body.preferredToken || 'PYUSD';
+      existingMarketplace.autoRelease = body.autoRelease !== false;
+      existingMarketplace.autoReleaseHours = body.autoReleaseHours || 72;
+      existingMarketplace.webhookUrl = body.webhookUrl;
+      
+      await existingMarketplace.save();
+      
+      const responseData = {
+        success: true,
+        message: 'Marketplace updated successfully (demo mode)',
+        marketplace: {
+          id: existingMarketplace._id,
+          marketplaceName: existingMarketplace.marketplaceName,
+          marketplaceType: existingMarketplace.marketplaceType,
+          businessEmail: existingMarketplace.businessEmail,
+          commissionRate: existingMarketplace.commissionRate,
+          preferredToken: existingMarketplace.preferredToken,
+          walletAddress: existingMarketplace.walletAddress,
+          isActive: existingMarketplace.isActive,
+          isVerified: existingMarketplace.isVerified,
+          totalEarnings: existingMarketplace.totalEarnings,
+          activeMerchants: existingMarketplace.activeMerchants,
+          createdAt: existingMarketplace.createdAt,
+          updatedAt: existingMarketplace.updatedAt
+        }
+      };
+      
+      console.log('✅ DEMO MODE: Marketplace updated successfully:', responseData.marketplace.id);
+      return NextResponse.json(responseData, { status: 200 });
     }
 
-    // Check if user already has a marketplace
-    const existingMarketplace = await MarketplaceModel.findOne({ userId: decoded.userId });
-    if (existingMarketplace) {
-      return NextResponse.json({ 
-        error: 'User already has a marketplace',
-        details: 'Each user can only create one marketplace'
-      }, { status: 400 });
+    // Find or create user
+    let existingUser = await UserModel.findOne({ privyId: user.privyId });
+    if (!existingUser) {
+      console.log('➕ DEMO MODE: Creating new marketplace user');
+      existingUser = new UserModel({
+        privyId: user.privyId,
+        email: user.email,
+        walletAddress: user.wallet?.address,
+        userType: 'marketplace_owner',
+        onboardingCompleted: true
+      });
+      await existingUser.save();
     }
 
     // Generate API key for marketplace integrations
@@ -121,30 +183,30 @@ export async function POST(req: NextRequest) {
 
     // Create new marketplace
     const newMarketplace = new MarketplaceModel({
-      userId: decoded.userId,
+      userId: user.id,
       privyId: user.privyId,
-      walletAddress: user.walletAddress,
+      walletAddress: user.wallet?.address,
       
       // Business Information
-      marketplaceName: marketplaceData.marketplaceName,
-      marketplaceType: marketplaceData.marketplaceType,
-      businessEmail: marketplaceData.businessEmail || user.email,
-      businessPhone: marketplaceData.businessPhone,
-      description: marketplaceData.description,
-      website: marketplaceData.website,
+      marketplaceName: body.marketplaceName,
+      marketplaceType: body.marketplaceType,
+      businessEmail: body.businessEmail || user.email,
+      businessPhone: body.businessPhone,
+      description: body.description,
+      website: body.website,
       
       // Financial Settings
-      commissionRate: marketplaceData.commissionRate || 2.5, // Default 2.5%
-      subscriptionFee: marketplaceData.subscriptionFee || 0,
-      chainPreference: marketplaceData.chainPreference || 42161, // Arbitrum One
-      preferredToken: marketplaceData.preferredToken || 'PYUSD',
+      commissionRate: body.commissionRate || 2.5, // Default 2.5%
+      subscriptionFee: body.subscriptionFee || 0,
+      chainPreference: body.chainPreference || 42161, // Arbitrum One
+      preferredToken: body.preferredToken || 'PYUSD',
       
       // Escrow Settings
-      autoRelease: marketplaceData.autoRelease !== false, // Default true
-      autoReleaseHours: marketplaceData.autoReleaseHours || 72, // Default 72 hours
+      autoRelease: body.autoRelease !== false, // Default true
+      autoReleaseHours: body.autoReleaseHours || 72, // Default 72 hours
       
       // Integration
-      webhookUrl: marketplaceData.webhookUrl,
+      webhookUrl: body.webhookUrl,
       apiKeyHash,
       
       // Initial stats
@@ -160,20 +222,20 @@ export async function POST(req: NextRequest) {
     });
 
     await newMarketplace.save();
-    console.log('✅ Marketplace Create API: Marketplace created successfully:', newMarketplace._id);
+    console.log('✅ DEMO MODE: Marketplace created successfully:', newMarketplace._id);
 
     // Update user to marketplace owner
-    await UserModel.findByIdAndUpdate(decoded.userId, {
+    await UserModel.findByIdAndUpdate(existingUser._id, {
       userType: 'marketplace_owner',
       onboardingCompleted: true,
       updatedAt: new Date()
     });
 
-    console.log('✅ Marketplace Create API: User updated to marketplace_owner');
+    console.log('✅ DEMO MODE: User updated to marketplace_owner');
 
     return NextResponse.json({
       success: true,
-      message: 'Marketplace created successfully',
+      message: 'Marketplace created successfully (demo mode)',
       marketplace: {
         id: newMarketplace._id,
         marketplaceName: newMarketplace.marketplaceName,
@@ -192,7 +254,7 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error) {
-    console.error('💥 Marketplace Create API: Error creating marketplace:', error);
+    console.error('💥 DEMO MODE: Marketplace creation error:', error);
     
     // Handle duplicate key errors
     if (error instanceof Error && error.message.includes('duplicate key')) {

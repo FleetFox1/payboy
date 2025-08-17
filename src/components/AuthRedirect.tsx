@@ -21,7 +21,7 @@ export default function AuthRedirect() {
             router.push('/dashboard/store');
             break;
           case 'solo-seller':
-            router.push('/seller/dashboard');
+            router.push('/dashboard/solo-seller'); // ✅ FIXED: was '/seller/dashboard'
             break;
           case 'marketplace':
             router.push('/dashboard/marketplace');
