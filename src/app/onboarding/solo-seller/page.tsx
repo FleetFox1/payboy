@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { usePrivy } from '@privy-io/react-auth'; // ✅ Added Privy import
 import { FormField } from '@/components/FormField';
 import { SelectField } from '@/components/SelectField';
 import { DEFAULT_CHAIN_ID } from '@/lib/chains';
@@ -41,6 +42,7 @@ const sellerTypes = [
 
 export default function SoloSellerOnboarding() {
   const router = useRouter();
+  const { user, getAccessToken, authenticated } = usePrivy(); // ✅ Added Privy hooks
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -67,60 +69,145 @@ export default function SoloSellerOnboarding() {
   };
 
   const handleSubmit = async () => {
+    console.log('🚀 Solo Seller: Starting submission...');
+    
     if (!formData.displayName || !formData.sellerType) {
       setError('Please fill in required fields');
       return;
     }
 
+    // ✅ Check authentication first
+    if (!authenticated) {
+      console.error('❌ Solo Seller: User not authenticated');
+      setError('Please connect your wallet to continue');
+      router.push('/');
+      return;
+    }
+
+    if (!user?.wallet?.address) {
+      console.error('❌ Solo Seller: No wallet address found');
+      setError('Wallet address required. Please connect your wallet.');
+      return;
+    }
+
+    console.log('✅ Solo Seller: User authenticated with wallet:', user.wallet.address);
+
     setLoading(true);
     setError('');
 
     try {
-      const token = localStorage.getItem('authToken');
+      // ✅ Enhanced token handling
+      let token = localStorage.getItem('authToken');
+      console.log('🔐 Solo Seller: Token from localStorage:', token ? `${token.substring(0, 20)}...` : 'null');
       
-      const response = await fetch('/api/seller/create', { // ✅ Correct API endpoint
+      // If no authToken or it's invalid, try getting from Privy
+      if (!token || token === 'null' || token.trim() === '') {
+        console.log('🔄 Solo Seller: Getting fresh token from Privy...');
+        try {
+          token = await getAccessToken();
+          console.log('✅ Solo Seller: Fresh token obtained:', token ? `${token.substring(0, 20)}...` : 'null');
+          
+          if (token) {
+            localStorage.setItem('authToken', token);
+            console.log('💾 Solo Seller: Token saved to localStorage');
+          }
+        } catch (tokenError) {
+          console.error('💥 Solo Seller: Failed to get access token:', tokenError);
+          setError('Failed to get authentication token. Please try logging in again.');
+          return;
+        }
+      }
+
+      if (!token) {
+        console.error('❌ Solo Seller: No token available after all attempts');
+        setError('Authentication required. Please log in again.');
+        router.push('/');
+        return;
+      }
+
+      // ✅ Prepare request data
+      const requestData = {
+        displayName: formData.displayName,
+        sellerType: formData.sellerType,
+        contactEmail: formData.contactEmail,
+        contactPhone: formData.contactPhone,
+        socialHandle: formData.socialHandle,
+        description: formData.description,
+        website: formData.website,
+        preferredToken: formData.preferredToken,
+        enableQRCodes: formData.enableQRCodes,
+        enablePaymentLinks: formData.enablePaymentLinks,
+        enableInvoices: formData.enableInvoices,
+        enableListings: formData.enableListings,
+        customMessage: formData.customMessage,
+        defaultPricing: formData.defaultPricing,
+        userType: 'solo_seller',
+        walletAddress: user.wallet.address // ✅ Include wallet address
+      };
+
+      console.log('📦 Solo Seller: Request data prepared:', {
+        ...requestData,
+        displayName: requestData.displayName,
+        sellerType: requestData.sellerType,
+        walletAddress: requestData.walletAddress
+      });
+
+      console.log('🌐 Solo Seller: Making API request to /api/seller/create...');
+      
+      const response = await fetch('/api/seller/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          displayName: formData.displayName,
-          sellerType: formData.sellerType,
-          contactEmail: formData.contactEmail,
-          contactPhone: formData.contactPhone,
-          socialHandle: formData.socialHandle,
-          description: formData.description,
-          website: formData.website,
-          preferredToken: formData.preferredToken,
-          enableQRCodes: formData.enableQRCodes,
-          enablePaymentLinks: formData.enablePaymentLinks,
-          enableInvoices: formData.enableInvoices,
-          enableListings: formData.enableListings,
-          customMessage: formData.customMessage,
-          defaultPricing: formData.defaultPricing,
-          userType: 'solo_seller' // ✅ Specific user type
-        })
+        body: JSON.stringify(requestData)
       });
 
+      console.log('📡 Solo Seller: API response status:', response.status);
+      console.log('📡 Solo Seller: API response headers:', Object.fromEntries(response.headers.entries()));
+
       const data = await response.json();
+      console.log('📄 Solo Seller: API response data:', data);
 
       if (data.success) {
+        console.log('✅ Solo Seller: Account created successfully!');
+        
         // ✅ Store seller data for dashboard
         localStorage.setItem('sellerData', JSON.stringify(data.seller));
-        localStorage.setItem('userType', 'solo_seller'); // ✅ Set user type
+        localStorage.setItem('userType', 'solo_seller');
+        console.log('💾 Solo Seller: Data saved to localStorage');
         
         // ✅ Redirect to solo seller dashboard
+        console.log('🎯 Solo Seller: Redirecting to dashboard...');
         router.push('/dashboard/solo-seller');
       } else {
+        console.error('❌ Solo Seller: API returned error:', data.error);
         setError(data.error || 'Failed to create solo seller account');
+        
+        // ✅ Handle specific auth errors
+        if (data.code === 'INVALID_TOKEN' || data.code === 'EXPIRED_TOKEN') {
+          console.log('🔄 Solo Seller: Token invalid, clearing localStorage...');
+          localStorage.removeItem('authToken');
+          setError('Session expired. Please refresh and try again.');
+        }
       }
     } catch (err) {
-      setError('Network error. Please try again.');
+      console.error('💥 Solo Seller: Network/submission error:', err);
+      setError('Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
   };
+
+  // ✅ Debug info in console
+  console.log('🔍 Solo Seller Debug Info:', {
+    authenticated,
+    hasUser: !!user,
+    hasWallet: !!user?.wallet?.address,
+    walletAddress: user?.wallet?.address,
+    step,
+    hasAuthToken: !!localStorage.getItem('authToken')
+  });
 
   if (step === 1) {
     return (
@@ -149,6 +236,18 @@ export default function SoloSellerOnboarding() {
             {error && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-red-700 text-sm">{error}</p>
+              </div>
+            )}
+
+            {/* ✅ Debug info for development */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <h4 className="font-medium text-yellow-900 mb-2">🔍 Debug Info:</h4>
+                <p className="text-xs text-yellow-800">
+                  Authenticated: {authenticated ? '✅' : '❌'} | 
+                  Wallet: {user?.wallet?.address ? `${user.wallet.address.substring(0, 8)}...` : '❌'} | 
+                  Token: {localStorage.getItem('authToken') ? '✅' : '❌'}
+                </p>
               </div>
             )}
 
