@@ -5,7 +5,8 @@ import mongoose from 'mongoose';
 
 // Seller schema for MongoDB
 const SellerSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  userId: { type: String, required: true }, // Changed to String for Privy IDs
+  walletAddress: { type: String, required: true }, // Added wallet address
   
   // Profile info
   displayName: { type: String, required: true },
@@ -13,14 +14,19 @@ const SellerSchema = new mongoose.Schema({
   contactEmail: String,
   contactPhone: String,
   socialHandle: String,
+  description: String, // Added description
+  website: String, // Added website
   
   // Payment settings
   preferredToken: { type: String, default: 'PYUSD' },
   chainPreference: { type: Number, default: 42161 }, // Arbitrum One
+  defaultPricing: { type: Number, default: 50 }, // Added default pricing
   
-  // Payment methods
+  // Payment methods - Updated to match your form
   enableQRCodes: { type: Boolean, default: true },
   enablePaymentLinks: { type: Boolean, default: true },
+  enableInvoices: { type: Boolean, default: true }, // Added invoices
+  enableListings: { type: Boolean, default: false }, // Added listings
   customMessage: { type: String, default: 'Payment for services' },
   
   // Generated identifiers
@@ -69,66 +75,116 @@ export async function POST(req: NextRequest) {
     try {
       await connectToMongoDB();
       
+      const body = await req.json();
+      
       const {
         displayName,
         sellerType,
         contactEmail,
         contactPhone,
         socialHandle,
+        description, // Added
+        website, // Added
         preferredToken,
         enableQRCodes,
         enablePaymentLinks,
-        customMessage
-      } = await req.json();
+        enableInvoices, // Added
+        enableListings, // Added
+        customMessage,
+        defaultPricing, // Added
+        walletAddress, // Added
+        userId, // From frontend
+        chainId, // From frontend
+        walletType, // From frontend
+        userType // From frontend
+      } = body;
+
+      console.log('📦 API: Received seller creation request:', {
+        displayName,
+        sellerType,
+        walletAddress,
+        userId: userId || user.userId || user.id,
+        userType
+      });
 
       // Validate required fields
       if (!displayName || !sellerType) {
-        return new Response(JSON.stringify({ 
+        console.error('❌ API: Missing required fields');
+        return NextResponse.json({ 
+          success: false,
           error: "Display name and seller type are required" 
-        }), { 
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        });
+        }, { status: 400 });
+      }
+
+      if (!walletAddress) {
+        console.error('❌ API: Missing wallet address');
+        return NextResponse.json({ 
+          success: false,
+          error: "Wallet address is required" 
+        }, { status: 400 });
       }
 
       // Validate that at least one payment method is enabled
-      if (!enableQRCodes && !enablePaymentLinks) {
-        return new Response(JSON.stringify({ 
+      if (!enableQRCodes && !enablePaymentLinks && !enableInvoices && !enableListings) {
+        console.error('❌ API: No payment methods enabled');
+        return NextResponse.json({ 
+          success: false,
           error: "At least one payment method must be enabled" 
-        }), { 
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        });
+        }, { status: 400 });
       }
 
+      // Use userId from request or fallback to auth user
+      const finalUserId = userId || user.userId || user.id;
+      if (!finalUserId) {
+        console.error('❌ API: No user ID available');
+        return NextResponse.json({ 
+          success: false,
+          error: "User ID not found" 
+        }, { status: 400 });
+      }
+
+      console.log('🔍 API: Using user ID:', finalUserId);
+
       // Check if seller already exists for this user
-      const existingSeller = await SellerModel.findOne({ userId: user.userId });
+      const existingSeller = await SellerModel.findOne({ 
+        $or: [
+          { userId: finalUserId },
+          { walletAddress: walletAddress.toLowerCase() }
+        ]
+      });
       
       if (existingSeller) {
-        return new Response(JSON.stringify({ 
-          error: "Seller account already exists for this user" 
-        }), { 
-          status: 409,
-          headers: { 'Content-Type': 'application/json' }
-        });
+        console.log('⚠️ API: Seller already exists');
+        return NextResponse.json({ 
+          success: false,
+          error: "Seller account already exists for this user or wallet" 
+        }, { status: 409 });
       }
 
       // Generate unique seller ID and QR code data
       const sellerId = generateSellerId();
       const qrCodeData = generateQRCodeData(sellerId, displayName);
 
-      // Create new seller
+      console.log('🔄 API: Creating new seller with ID:', sellerId);
+
+      // Create new seller with all fields
       const newSeller = new SellerModel({
-        userId: user.userId,
+        userId: finalUserId,
+        walletAddress: walletAddress.toLowerCase(),
         displayName,
         sellerType,
-        contactEmail,
-        contactPhone,
-        socialHandle,
+        contactEmail: contactEmail || '',
+        contactPhone: contactPhone || '',
+        socialHandle: socialHandle || '',
+        description: description || '',
+        website: website || '',
         preferredToken: preferredToken || 'PYUSD',
-        chainPreference: 42161, // Arbitrum One
+        chainPreference: parseInt(chainId) || 42161,
+        defaultPricing: defaultPricing || 50,
         enableQRCodes: enableQRCodes !== undefined ? enableQRCodes : true,
         enablePaymentLinks: enablePaymentLinks !== undefined ? enablePaymentLinks : true,
+        enableInvoices: enableInvoices !== undefined ? enableInvoices : true,
+        enableListings: enableListings !== undefined ? enableListings : false,
         customMessage: customMessage || 'Payment for services',
         sellerId,
         qrCodeData,
@@ -139,14 +195,26 @@ export async function POST(req: NextRequest) {
       });
 
       await newSeller.save();
+      console.log('✅ API: Seller created successfully');
 
-      // Update user type to seller
-      await UserModel.findByIdAndUpdate(user.userId, { 
-        userType: 'seller',
-        displayName: displayName // Update user display name too
-      });
+      // Try to update user type (don't fail if user doesn't exist)
+      try {
+        await UserModel.findOneAndUpdate(
+          { $or: [{ _id: finalUserId }, { privyId: finalUserId }] },
+          { 
+            userType: 'seller',
+            displayName: displayName,
+            walletAddress: walletAddress.toLowerCase()
+          },
+          { upsert: false } // Don't create if doesn't exist
+        );
+        console.log('✅ API: User type updated');
+      } catch (userUpdateError) {
+        console.warn('⚠️ API: Could not update user type:', userUpdateError);
+        // Don't fail the seller creation if user update fails
+      }
 
-      return new Response(JSON.stringify({
+      const responseData = {
         success: true,
         message: "Seller account created successfully",
         seller: {
@@ -154,27 +222,31 @@ export async function POST(req: NextRequest) {
           sellerId: newSeller.sellerId,
           displayName: newSeller.displayName,
           sellerType: newSeller.sellerType,
+          walletAddress: newSeller.walletAddress,
           preferredToken: newSeller.preferredToken,
           enableQRCodes: newSeller.enableQRCodes,
           enablePaymentLinks: newSeller.enablePaymentLinks,
+          enableInvoices: newSeller.enableInvoices,
+          enableListings: newSeller.enableListings,
+          defaultPricing: newSeller.defaultPricing,
           qrCodeData: newSeller.qrCodeData,
           paymentUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://payboy.app'}/pay/${newSeller.sellerId}`,
           isActive: newSeller.isActive,
           isVerified: newSeller.isVerified,
         }
-      }), { 
-        status: 201,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      };
+
+      console.log('📤 API: Sending response:', responseData);
+
+      return NextResponse.json(responseData, { status: 201 });
 
     } catch (error) {
-      console.error('Seller creation error:', error);
-      return new Response(JSON.stringify({ 
-        error: "Failed to create seller account" 
-      }), { 
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      console.error('💥 API: Seller creation error:', error);
+      return NextResponse.json({ 
+        success: false,
+        error: "Failed to create seller account",
+        details: process.env.NODE_ENV === 'development' && error instanceof Error ? error.message : undefined
+      }, { status: 500 });
     }
   });
 }
