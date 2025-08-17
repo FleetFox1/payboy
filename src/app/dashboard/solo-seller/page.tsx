@@ -3,24 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
-import ListingModal from '@/components/ListingModal'; // ✅ Add modal import
-
-interface SellerData {
-  id: string;
-  displayName: string;
-  ensName?: string;
-  sellerType: string;
-  contactEmail?: string;
-  location?: string;
-  walletAddress: string;
-  isActive: boolean;
-  isVerified: boolean;
-  totalEarnings: number;
-  totalSales: number;
-  activeListings: number;
-  lastSale?: string;
-  createdAt: string;
-}
+import { QRCodeSVG } from 'qrcode.react';
 
 interface SellerStats {
   totalEarnings: number;
@@ -53,7 +36,6 @@ interface SellerStats {
   };
 }
 
-// ✅ Add Listing interface
 interface Listing {
   id: string;
   listingId: string;
@@ -61,7 +43,6 @@ interface Listing {
   description: string;
   shortDescription?: string;
   price: number;
-  formattedPrice?: string;
   category: string;
   images: string[];
   paymentMethods: {
@@ -81,7 +62,6 @@ interface Listing {
   updatedAt: string;
 }
 
-// ✅ Simple ENS Address Component for this file
 function ENSAddress({ address, className = '' }: { address: string; className?: string }) {
   return (
     <span className={`font-mono text-sm ${className}`}>
@@ -93,29 +73,23 @@ function ENSAddress({ address, className = '' }: { address: string; className?: 
 export default function SoloSellerDashboard() {
   const router = useRouter();
   const { authenticated, user, login, getAccessToken } = usePrivy();
-  const [sellerData, setSellerData] = useState<SellerData | null>(null);
   const [sellerStats, setSellerStats] = useState<SellerStats | null>(null);
-  const [listings, setListings] = useState<Listing[]>([]); // ✅ Add listings state
+  const [listings, setListings] = useState<Listing[]>([]);
   const [recentSales, setRecentSales] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [loadingListings, setLoadingListings] = useState(false); // ✅ Add loading state for listings
+  const [loadingListings, setLoadingListings] = useState(false);
   const [loginAttempted, setLoginAttempted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
-
-  // ✅ ADD MODAL STATE
-  const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [copySuccess, setCopySuccess] = useState<string | null>(null);
+  const [expandedListing, setExpandedListing] = useState<string | null>(null);
 
-  // ✅ Only run on client side
   useEffect(() => {
     setIsClient(true);
   }, []);
 
   useEffect(() => {
     async function checkAuth() {
-      // Only attempt login once
       if (!authenticated && !loginAttempted) {
         setLoginAttempted(true);
         try {
@@ -127,23 +101,20 @@ export default function SoloSellerDashboard() {
         return;
       }
 
-      // Load dashboard data only when authenticated and client-side
       if (authenticated && isClient) {
         await loadSellerData();
-        await loadUserListings(); // ✅ Load listings when dashboard loads
+        await loadUserListings();
       }
     }
 
     checkAuth();
   }, [authenticated, router, isClient]);
 
-  // ✅ Function to load user's listings - FIXED API ENDPOINT
   const loadUserListings = async () => {
     try {
       setLoadingListings(true);
       console.log('🔍 Loading user listings...');
       
-      // Get auth token
       let token: string | null = null;
       if (typeof window !== 'undefined') {
         token = localStorage.getItem('authToken');
@@ -168,9 +139,7 @@ export default function SoloSellerDashboard() {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      // Add user ID as URL parameter as fallback
       const userId = user?.id || 'demo-user';
-      // ✅ FIXED: Changed from /api/listing/get to /api/listings/get (plural)
       const url = `/api/listings/get?userId=${encodeURIComponent(userId)}`;
       
       console.log('🌐 Fetching listings from:', url);
@@ -184,17 +153,23 @@ export default function SoloSellerDashboard() {
         console.log('📄 Listings API response:', data);
         
         if (data.success) {
-          setListings(data.listings || []);
-          console.log('✅ Loaded', data.listings?.length || 0, 'listings');
+          // Ensure each listing has a proper payment URL for demo
+          const processedListings = (data.listings || []).map((listing: Listing) => ({
+            ...listing,
+            paymentUrl: listing.paymentUrl || `https://payboy.app/pay?item=${listing.id}&amount=${listing.price}&seller=${user?.wallet?.address || 'demo'}`,
+            qrCodeData: listing.qrCodeData || `https://payboy.app/pay?item=${listing.id}&amount=${listing.price}&seller=${user?.wallet?.address || 'demo'}`
+          }));
           
-          // Update seller stats with actual listing count
+          setListings(processedListings);
+          console.log('✅ Loaded', processedListings.length, 'listings');
+          
           if (sellerStats) {
             setSellerStats({
               ...sellerStats,
-              activeListings: data.listings?.length || 0,
+              activeListings: processedListings.length,
               status: {
                 ...sellerStats.status,
-                hasActiveListings: (data.listings?.length || 0) > 0
+                hasActiveListings: processedListings.length > 0
               }
             });
           }
@@ -203,17 +178,14 @@ export default function SoloSellerDashboard() {
         }
       } else {
         console.warn('⚠️ Listings API not available or failed:', response.status);
-        // Don't set error - API might not exist yet
       }
     } catch (error) {
       console.error('💥 Error loading listings:', error);
-      // Don't set error - this is optional for now
     } finally {
       setLoadingListings(false);
     }
   };
 
-  // ✅ ADD COPY LINK FUNCTION
   const handleCopyLink = async (listing: Listing) => {
     try {
       await navigator.clipboard.writeText(listing.paymentUrl);
@@ -221,7 +193,6 @@ export default function SoloSellerDashboard() {
       setTimeout(() => setCopySuccess(null), 2000);
     } catch (err) {
       console.error('Failed to copy link:', err);
-      // Fallback for older browsers
       const textArea = document.createElement('textarea');
       textArea.value = listing.paymentUrl;
       document.body.appendChild(textArea);
@@ -237,29 +208,10 @@ export default function SoloSellerDashboard() {
     }
   };
 
-  // ✅ Add a function to refresh listings after creating one
-  const refreshListings = async () => {
-    await loadUserListings();
-  };
-
-  // ✅ Add useEffect to listen for navigation/page focus to refresh listings
-  useEffect(() => {
-    const handleFocus = () => {
-      if (authenticated && isClient) {
-        console.log('🔄 Page focused, refreshing listings...');
-        loadUserListings();
-      }
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [authenticated, isClient]);
-
   const loadSellerData = async () => {
     try {
       setIsLoading(true);
       
-      // ✅ Safe localStorage access
       let token: string | null = null;
       if (typeof window !== 'undefined') {
         token = localStorage.getItem('authToken');
@@ -270,7 +222,6 @@ export default function SoloSellerDashboard() {
         return;
       }
 
-      // ✅ Try to use stored seller data first
       if (typeof window !== 'undefined') {
         const storedSellerData = localStorage.getItem('sellerData');
         if (storedSellerData) {
@@ -278,7 +229,6 @@ export default function SoloSellerDashboard() {
             const sellerData = JSON.parse(storedSellerData);
             console.log('✅ Solo Seller Dashboard: Using stored seller data:', sellerData);
             
-            // Create stats from stored data
             const mockStats: SellerStats = {
               totalEarnings: sellerData.totalEarnings || 0,
               totalSales: sellerData.totalSales || 0,
@@ -319,86 +269,32 @@ export default function SoloSellerDashboard() {
         }
       }
 
-      // ✅ Try API if no stored data (will create the endpoint later)
-      try {
-        const statsResponse = await fetch('/api/seller/stats', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (statsResponse.ok) {
-          const statsData = await statsResponse.json();
-          if (statsData.success) {
-            setSellerStats(statsData.stats);
-          } else {
-            setError(statsData.error || 'Failed to load seller data');
-          }
-        } else if (statsResponse.status === 404) {
-          // Seller not found - redirect to onboarding
-          router.replace('/onboarding/solo-seller');
-          return;
-        } else {
-          // API doesn't exist yet - use default data
-          console.log('📝 Solo Seller Dashboard: API not ready, using default data');
-          
-          const defaultStats: SellerStats = {
-            totalEarnings: 0,
-            totalSales: 0,
-            activeListings: 0,
-            totalViews: 0,
-            averageSalePrice: 0,
-            sellerName: 'Solo Seller',
-            sellerType: 'Creator',
-            isVerified: false,
-            isActive: true,
-            sellerAge: { days: 0, weeks: 0, months: 0 },
-            performance: {
-              salesGoal: 20,
-              salesProgress: 0,
-              earningsGoal: 500,
-              earningsProgress: 0
-            },
-            status: {
-              hasENS: false,
-              profileCompletion: 75,
-              hasActiveListings: false
-            }
-          };
-          
-          setSellerStats(defaultStats);
+      const defaultStats: SellerStats = {
+        totalEarnings: 0,
+        totalSales: 0,
+        activeListings: 0,
+        totalViews: 0,
+        averageSalePrice: 0,
+        sellerName: 'Solo Seller',
+        sellerType: 'Creator',
+        isVerified: false,
+        isActive: true,
+        sellerAge: { days: 0, weeks: 0, months: 0 },
+        performance: {
+          salesGoal: 20,
+          salesProgress: 0,
+          earningsGoal: 500,
+          earningsProgress: 0
+        },
+        status: {
+          hasENS: false,
+          profileCompletion: 75,
+          hasActiveListings: false
         }
-      } catch (apiError) {
-        console.log('📝 Solo Seller Dashboard: API call failed, using default data');
-        
-        const defaultStats: SellerStats = {
-          totalEarnings: 0,
-          totalSales: 0,
-          activeListings: 0,
-          totalViews: 0,
-          averageSalePrice: 0,
-          sellerName: 'Solo Seller',
-          sellerType: 'Creator',
-          isVerified: false,
-          isActive: true,
-          sellerAge: { days: 0, weeks: 0, months: 0 },
-          performance: {
-            salesGoal: 20,
-            salesProgress: 0,
-            earningsGoal: 500,
-            earningsProgress: 0
-          },
-          status: {
-            hasENS: false,
-            profileCompletion: 75,
-            hasActiveListings: false
-          }
-        };
-        
-        setSellerStats(defaultStats);
-      }
+      };
+      
+      setSellerStats(defaultStats);
 
-      // Mock recent sales for now (TODO: Create sales API)
       setRecentSales([
         { 
           id: 'sale1', 
@@ -434,7 +330,6 @@ export default function SoloSellerDashboard() {
     }
   };
 
-  // ✅ Show loading until client-side hydration
   if (!isClient) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -446,7 +341,6 @@ export default function SoloSellerDashboard() {
     );
   }
 
-  // Show loading state
   if (isLoading || !authenticated) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -459,7 +353,6 @@ export default function SoloSellerDashboard() {
     );
   }
 
-  // Show error state
   if (error) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -497,11 +390,6 @@ export default function SoloSellerDashboard() {
                 ✓ Verified Seller
               </span>
             )}
-            {!sellerStats?.isActive && (
-              <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">
-                Inactive
-              </span>
-            )}
           </div>
         </div>
         
@@ -526,11 +414,7 @@ export default function SoloSellerDashboard() {
           <div>
             <p className="text-gray-600 text-sm mb-2">Your Seller Identity:</p>
             <div className="font-mono">
-              {sellerStats?.ensName ? (
-                <ENSAddress address={user?.wallet?.address || ''} />
-              ) : (
-                <ENSAddress address={user?.wallet?.address || ''} />
-              )}
+              <ENSAddress address={user?.wallet?.address || ''} />
             </div>
             {sellerStats?.status.hasENS && (
               <p className="text-xs text-blue-600 mt-1">
@@ -612,20 +496,12 @@ export default function SoloSellerDashboard() {
         </div>
       </section>
 
-      {/* Quick Actions - Solo Seller Focus */}
+      {/* Quick Actions */}
       <section className="bg-white border rounded-lg p-6">
         <h2 className="text-lg font-bold mb-4">💰 Start Selling</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <button
-            onClick={async () => {
-              router.push('/seller/create-listing');
-              // Refresh listings when returning to dashboard
-              setTimeout(() => {
-                if (document.visibilityState === 'visible') {
-                  loadUserListings();
-                }
-              }, 1000);
-            }}
+            onClick={() => router.push('/seller/create-listing')}
             className="bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-lg hover:from-green-600 hover:to-green-700 transition text-center"
           >
             <div className="text-2xl mb-2">📦</div>
@@ -662,7 +538,7 @@ export default function SoloSellerDashboard() {
         </div>
       </section>
 
-      {/* ✅ MY LISTINGS SECTION - UPDATED WITH MODAL FUNCTIONALITY */}
+      {/* MY LISTINGS WITH QR CODES */}
       <section className="bg-white border rounded-lg p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold">📋 My Listings</h2>
@@ -692,12 +568,6 @@ export default function SoloSellerDashboard() {
           <div className="text-center py-8">
             <div className="text-4xl mb-4">📦</div>
             <p className="text-gray-500 mb-4">No listings yet! Create your first listing to start selling.</p>
-            <div className="space-y-2 text-sm text-gray-400 mb-4">
-              <p>• Add photos and descriptions of items you want to sell</p>
-              <p>• Set competitive prices for quick sales</p>
-              <p>• Choose multiple payment methods to reach more buyers</p>
-              <p>• Share your listing links on social media</p>
-            </div>
             <button
               onClick={() => router.push('/seller/create-listing')}
               className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
@@ -721,26 +591,20 @@ export default function SoloSellerDashboard() {
                           Inactive
                         </span>
                       )}
-                      {!listing.isVisible && (
-                        <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded">
-                          Hidden
-                        </span>
-                      )}
                     </div>
                     
                     <p className="text-gray-600 text-sm mb-2">
                       {listing.shortDescription || listing.description.substring(0, 100) + '...'}
                     </p>
                     
-                    <div className="flex items-center space-x-4 text-xs text-gray-500">
+                    <div className="flex items-center space-x-4 text-xs text-gray-500 mb-2">
                       <span>📂 {listing.category}</span>
                       <span>👁️ {listing.views} views</span>
                       <span>💬 {listing.inquiries} inquiries</span>
                       <span>💰 {listing.sales} sales</span>
-                      <span>📅 {new Date(listing.createdAt).toLocaleDateString()}</span>
                     </div>
 
-                    <div className="flex items-center space-x-2 mt-2">
+                    <div className="flex items-center space-x-2">
                       {listing.paymentMethods.pyusd && (
                         <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">PYUSD</span>
                       )}
@@ -750,100 +614,126 @@ export default function SoloSellerDashboard() {
                       {listing.paymentMethods.venmo && (
                         <span className="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded">Venmo</span>
                       )}
-                      {listing.paymentMethods.email && (
-                        <span className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded">Email</span>
-                      )}
                     </div>
                   </div>
                   
-                  {/* ✅ UPDATED BUTTON SECTION WITH MODAL FUNCTIONALITY */}
-                  <div className="flex flex-col space-y-2 ml-4">
-                    <button
-                      onClick={() => {
-                        setSelectedListing(listing);
-                        setIsModalOpen(true);
-                      }}
-                      className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
-                    >
-                      📱 View Listing
-                    </button>
-                    <button
-                      onClick={() => handleCopyLink(listing)}
-                      className={`px-3 py-1 rounded text-sm transition ${
-                        copySuccess === listing.id
-                          ? 'bg-green-600 text-white'
-                          : 'bg-gray-600 text-white hover:bg-gray-700'
-                      }`}
-                    >
-                      {copySuccess === listing.id ? '✓ Copied!' : '📋 Copy Link'}
-                    </button>
-                    <button
-                      onClick={() => {
-                        // TODO: Add edit functionality
-                        alert('Edit functionality coming soon!');
-                      }}
-                      className="bg-yellow-600 text-white px-3 py-1 rounded text-sm hover:bg-yellow-700"
-                    >
-                      ✏️ Edit
-                    </button>
+                  <div className="flex items-center space-x-4 ml-4">
+                    {/* QR CODE DISPLAY */}
+                    <div className="text-center">
+                      <div className="bg-white p-2 border rounded-lg">
+                        <QRCodeSVG 
+                          value={listing.qrCodeData || listing.paymentUrl} 
+                          size={80}
+                          level="M"
+                          includeMargin={false}
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">QR Code</p>
+                    </div>
+                    
+                    {/* BUTTONS */}
+                    <div className="flex flex-col space-y-2">
+                      <button
+                        onClick={() => setExpandedListing(expandedListing === listing.id ? null : listing.id)}
+                        className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
+                      >
+                        {expandedListing === listing.id ? '🔽 Hide' : '📱 Show QR'}
+                      </button>
+                      <button
+                        onClick={() => handleCopyLink(listing)}
+                        className={`px-3 py-1 rounded text-sm transition ${
+                          copySuccess === listing.id
+                            ? 'bg-green-600 text-white'
+                            : 'bg-gray-600 text-white hover:bg-gray-700'
+                        }`}
+                      >
+                        {copySuccess === listing.id ? '✓ Copied!' : '📋 Copy Link'}
+                      </button>
+                    </div>
                   </div>
                 </div>
+                
+                {/* EXPANDED QR CODE SECTION */}
+                {expandedListing === listing.id && (
+                  <div className="mt-4 pt-4 border-t bg-gray-50 rounded-lg p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Large QR Code */}
+                      <div className="text-center">
+                        <div className="bg-white p-6 rounded-lg shadow-sm inline-block">
+                          <QRCodeSVG 
+                            value={listing.qrCodeData || listing.paymentUrl} 
+                            size={200}
+                            level="M"
+                            includeMargin={true}
+                          />
+                        </div>
+                        <p className="text-sm text-gray-600 mt-2">Scan to buy this item</p>
+                        <button
+                          onClick={() => {
+                            const canvas = document.createElement('canvas');
+                            const ctx = canvas.getContext('2d');
+                            const svg = document.querySelector(`#qr-${listing.id}`) as SVGElement;
+                            // Simple download functionality could be added here
+                            alert('QR Code download feature coming soon!');
+                          }}
+                          className="mt-2 text-xs text-blue-600 hover:text-blue-800"
+                        >
+                          💾 Download QR
+                        </button>
+                      </div>
+                      
+                      {/* Payment Link */}
+                      <div>
+                        <h4 className="font-semibold mb-2">Payment Link:</h4>
+                        <div className="bg-white border rounded p-3 mb-3">
+                          <p className="text-xs font-mono text-gray-600 break-all">
+                            {listing.paymentUrl}
+                          </p>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <button
+                            onClick={() => handleCopyLink(listing)}
+                            className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 text-sm"
+                          >
+                            📋 Copy Payment Link
+                          </button>
+                          <button
+                            onClick={() => window.open(listing.paymentUrl, '_blank')}
+                            className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 text-sm"
+                          >
+                            👁️ Preview Payment Page
+                          </button>
+                        </div>
+                        
+                        {copySuccess === listing.id && (
+                          <p className="text-green-600 text-sm mt-2">✅ Link copied to clipboard!</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
-            
-            {listings.length > 0 && (
-              <div className="text-center pt-4">
-                <button
-                  onClick={() => router.push('/seller/manage-listings')}
-                  className="text-blue-600 hover:text-blue-800 text-sm"
-                >
-                  View All Listings →
-                </button>
-              </div>
-            )}
           </div>
         )}
       </section>
 
-      {/* Rest of your existing sections... */}
-      {/* Recent Sales */}
+      {/* Recent Sales - Simplified */}
       <section className="bg-white border rounded-lg p-6">
-        <h2 className="text-lg font-bold mb-4">Recent Sales</h2>
+        <h2 className="text-lg font-bold mb-4">💰 Recent Sales</h2>
         {recentSales.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="text-4xl mb-4">🎯</div>
-            <p className="text-gray-500 mb-4">No sales yet! Ready to make your first sale?</p>
-            <div className="space-y-2 text-sm text-gray-400">
-              <p>• Create a listing for an item you want to sell</p>
-              <p>• Generate a payment link for a service</p>
-              <p>• Share a QR code for in-person payments</p>
-              <p>• Send an invoice to a client</p>
-            </div>
-            <button
-              onClick={() => router.push('/seller/create-listing')}
-              className="mt-4 bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
-            >
-              Create Your First Listing
-            </button>
+          <div className="text-center py-6">
+            <div className="text-3xl mb-2">🎯</div>
+            <p className="text-gray-500">No sales yet! Create listings to start selling.</p>
           </div>
         ) : (
           <div className="space-y-3">
             {recentSales.map((sale) => (
-              <div key={sale.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
+              <div key={sale.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                 <div>
                   <p className="font-medium">{sale.itemName}</p>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <p className="text-sm text-gray-500">{sale.date}</p>
-                    <span className="text-sm">→</span>
-                    <ENSAddress address={sale.buyer} className="text-sm" />
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      sale.status === 'completed' ? 'bg-green-100 text-green-800' :
-                      sale.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {sale.status}
-                    </span>
-                  </div>
+                  <p className="text-sm text-gray-500">{sale.date} → {sale.buyer}</p>
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-green-600">+${sale.amount.toFixed(2)}</p>
@@ -854,119 +744,6 @@ export default function SoloSellerDashboard() {
           </div>
         )}
       </section>
-
-      {/* Seller Tools & Management */}
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Listing Analytics */}
-        <div className="bg-white border rounded-lg p-6">
-          <h3 className="text-lg font-semibold mb-4">📊 Listing Performance</h3>
-          {listings.length > 0 ? (
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span>Total Listings:</span>
-                <span className="font-semibold text-blue-600">{listings.length}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>Total Views:</span>
-                <span className="font-semibold">{listings.reduce((total, listing) => total + listing.views, 0)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>Total Inquiries:</span>
-                <span className="font-semibold">{listings.reduce((total, listing) => total + listing.inquiries, 0)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>Total Sales:</span>
-                <span className="font-semibold text-green-600">{listings.reduce((total, listing) => total + listing.sales, 0)}</span>
-              </div>
-              <button
-                onClick={() => router.push('/seller/analytics')}
-                className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 mt-4"
-              >
-                View Analytics
-              </button>
-            </div>
-          ) : (
-            <div className="text-center py-4">
-              <p className="text-gray-500 mb-3">No listings to analyze yet</p>
-              <button
-                onClick={() => router.push('/seller/create-listing')}
-                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-              >
-                Create First Listing
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Account Settings */}
-        <div className="bg-white border rounded-lg p-6">
-          <h3 className="text-lg font-semibold mb-4">⚙️ Account</h3>
-          <div className="space-y-3">
-            <button
-              onClick={() => router.push('/seller/profile')}
-              className="w-full text-left p-2 hover:bg-gray-50 rounded flex justify-between items-center"
-            >
-              <span>Edit Profile</span>
-              <span>→</span>
-            </button>
-            <button
-              onClick={() => router.push('/seller/ens-setup')}
-              className="w-full text-left p-2 hover:bg-gray-50 rounded flex justify-between items-center"
-            >
-              <span>ENS Setup</span>
-              {!sellerStats?.status.hasENS && (
-                <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">Setup</span>
-              )}
-            </button>
-            <button
-              onClick={() => router.push('/seller/payout-settings')}
-              className="w-full text-left p-2 hover:bg-gray-50 rounded flex justify-between items-center"
-            >
-              <span>Payout Settings</span>
-              <span>→</span>
-            </button>
-            <button
-              onClick={() => router.push('/seller/withdraw')}
-              className="w-full bg-purple-600 text-white py-2 rounded hover:bg-purple-700 text-center"
-            >
-              💰 Withdraw Earnings
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* Tips for Solo Sellers */}
-      <section className="bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-blue-900 mb-4">💡 Solo Seller Tips</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <div>
-            <h4 className="font-medium text-blue-800 mb-2">📸 Great Photos = More Sales</h4>
-            <p className="text-blue-700">Use natural lighting and multiple angles for your items</p>
-          </div>
-          <div>
-            <h4 className="font-medium text-blue-800 mb-2">💬 Quick Responses Win</h4>
-            <p className="text-blue-700">Reply to buyer questions within a few hours</p>
-          </div>
-          <div>
-            <h4 className="font-medium text-blue-800 mb-2">🏷️ Competitive Pricing</h4>
-            <p className="text-blue-700">Research similar items to price yours fairly</p>
-          </div>
-          <div>
-            <h4 className="font-medium text-blue-800 mb-2">✨ ENS Names Build Trust</h4>
-            <p className="text-blue-700">Custom names like "artist.eth" look more professional</p>
-          </div>
-        </div>
-      </section>
-
-      {/* ✅ ADD THE LISTING MODAL */}
-      <ListingModal 
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setSelectedListing(null);
-        }}
-        listing={selectedListing}
-      />
     </main>
   );
 }
