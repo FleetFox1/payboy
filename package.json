@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@ensdomains/ensjs": "^4.0.2",
+    "@headlessui/react": "^2.2.7",
     "@privy-io/react-auth": "^2.21.3",
     "@privy-io/server-auth": "^1.31.1",
     "@privy-io/wagmi": "^1.0.6",
@@ -50,6 +51,7 @@
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/qrcode": "^1.5.5",
+    "@types/qrcode.react": "^3.0.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
+import ListingModal from '@/components/ListingModal'; // ✅ Add modal import
 
 interface SellerData {
   id: string;
@@ -101,6 +102,11 @@ export default function SoloSellerDashboard() {
   const [loginAttempted, setLoginAttempted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
+
+  // ✅ ADD MODAL STATE
+  const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [copySuccess, setCopySuccess] = useState<string | null>(null);
 
   // ✅ Only run on client side
   useEffect(() => {
@@ -204,6 +210,30 @@ export default function SoloSellerDashboard() {
       // Don't set error - this is optional for now
     } finally {
       setLoadingListings(false);
+    }
+  };
+
+  // ✅ ADD COPY LINK FUNCTION
+  const handleCopyLink = async (listing: Listing) => {
+    try {
+      await navigator.clipboard.writeText(listing.paymentUrl);
+      setCopySuccess(listing.id);
+      setTimeout(() => setCopySuccess(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy link:', err);
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = listing.paymentUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        setCopySuccess(listing.id);
+        setTimeout(() => setCopySuccess(null), 2000);
+      } catch (fallbackErr) {
+        console.error('Fallback copy failed:', fallbackErr);
+      }
+      document.body.removeChild(textArea);
     }
   };
 
@@ -632,7 +662,7 @@ export default function SoloSellerDashboard() {
         </div>
       </section>
 
-      {/* ✅ MY LISTINGS SECTION - ENHANCED WITH REFRESH BUTTON */}
+      {/* ✅ MY LISTINGS SECTION - UPDATED WITH MODAL FUNCTIONALITY */}
       <section className="bg-white border rounded-lg p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold">📋 My Listings</h2>
@@ -726,18 +756,26 @@ export default function SoloSellerDashboard() {
                     </div>
                   </div>
                   
+                  {/* ✅ UPDATED BUTTON SECTION WITH MODAL FUNCTIONALITY */}
                   <div className="flex flex-col space-y-2 ml-4">
                     <button
-                      onClick={() => window.open(listing.paymentUrl, '_blank')}
+                      onClick={() => {
+                        setSelectedListing(listing);
+                        setIsModalOpen(true);
+                      }}
                       className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
                     >
-                      View Listing
+                      📱 View Listing
                     </button>
                     <button
-                      onClick={() => navigator.clipboard.writeText(listing.paymentUrl)}
-                      className="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700"
+                      onClick={() => handleCopyLink(listing)}
+                      className={`px-3 py-1 rounded text-sm transition ${
+                        copySuccess === listing.id
+                          ? 'bg-green-600 text-white'
+                          : 'bg-gray-600 text-white hover:bg-gray-700'
+                      }`}
                     >
-                      Copy Link
+                      {copySuccess === listing.id ? '✓ Copied!' : '📋 Copy Link'}
                     </button>
                     <button
                       onClick={() => {
@@ -746,7 +784,7 @@ export default function SoloSellerDashboard() {
                       }}
                       className="bg-yellow-600 text-white px-3 py-1 rounded text-sm hover:bg-yellow-700"
                     >
-                      Edit
+                      ✏️ Edit
                     </button>
                   </div>
                 </div>
@@ -767,6 +805,7 @@ export default function SoloSellerDashboard() {
         )}
       </section>
 
+      {/* Rest of your existing sections... */}
       {/* Recent Sales */}
       <section className="bg-white border rounded-lg p-6">
         <h2 className="text-lg font-bold mb-4">Recent Sales</h2>
@@ -918,6 +957,16 @@ export default function SoloSellerDashboard() {
           </div>
         </div>
       </section>
+
+      {/* ✅ ADD THE LISTING MODAL */}
+      <ListingModal 
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedListing(null);
+        }}
+        listing={selectedListing}
+      />
     </main>
   );
 }
