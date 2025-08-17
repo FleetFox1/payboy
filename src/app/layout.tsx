@@ -1,10 +1,9 @@
-// src/app/layout.tsx
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+// ✅ REMOVE THIS LINE: import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 
-const inter = Inter({ subsets: ["latin"] })
+// ✅ REMOVE THIS LINE: const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "PayBoy",
@@ -18,7 +17,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body> {/* ✅ REMOVE: className={inter.className} */}
         <Providers>
           {children}
         </Providers>
