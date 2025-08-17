@@ -5,9 +5,10 @@ import { usePrivy } from '@privy-io/react-auth';
 import { useRouter } from 'next/navigation';
 
 export default function CreateListingPage() {
-  const { user } = usePrivy();
+  const { user, getAccessToken } = usePrivy();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -38,9 +39,10 @@ export default function CreateListingPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
 
     try {
-      const response = await fetch('/api/listings/create', {
+      const response = await fetch('/api/seller/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -51,12 +53,19 @@ export default function CreateListingPage() {
       });
 
       const result = await response.json();
+      console.log('📄 API response:', result);
       
       if (result.success) {
-        router.push(`/seller/dashboard`);
+        console.log('✅ Listing created successfully!');
+        console.log('🎯 Redirecting to dashboard...');
+        router.push('/dashboard/solo-seller');
+      } else {
+        console.error('❌ API error:', result.error);
+        setError(result.error || 'Failed to create listing');
       }
     } catch (error) {
-      console.error('Error creating listing:', error);
+      console.error('💥 Error creating listing:', error);
+      setError('Network error. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -69,6 +78,12 @@ export default function CreateListingPage() {
           <h1 className="text-3xl font-bold text-gray-900 mb-8">
             Create New Listing
           </h1>
+
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-700 text-sm">{error}</p>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Title */}
@@ -109,6 +124,7 @@ export default function CreateListingPage() {
               <input
                 type="number"
                 step="0.01"
+                min="0.01"
                 value={formData.price}
                 onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -182,7 +198,7 @@ export default function CreateListingPage() {
             <div className="flex gap-4">
               <button
                 type="button"
-                onClick={() => router.back()}
+                onClick={() => router.push('/dashboard/solo-seller')}
                 className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
               >
                 Cancel

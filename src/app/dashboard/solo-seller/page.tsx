@@ -52,6 +52,34 @@ interface SellerStats {
   };
 }
 
+// ✅ Add Listing interface
+interface Listing {
+  id: string;
+  listingId: string;
+  title: string;
+  description: string;
+  shortDescription?: string;
+  price: number;
+  formattedPrice?: string;
+  category: string;
+  images: string[];
+  paymentMethods: {
+    pyusd: boolean;
+    paypal: boolean;
+    venmo: boolean;
+    email: boolean;
+  };
+  paymentUrl: string;
+  qrCodeData: string;
+  isActive: boolean;
+  isVisible: boolean;
+  views: number;
+  inquiries: number;
+  sales: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ✅ Simple ENS Address Component for this file
 function ENSAddress({ address, className = '' }: { address: string; className?: string }) {
   return (
@@ -63,14 +91,16 @@ function ENSAddress({ address, className = '' }: { address: string; className?: 
 
 export default function SoloSellerDashboard() {
   const router = useRouter();
-  const { authenticated, user, login } = usePrivy();
+  const { authenticated, user, login, getAccessToken } = usePrivy();
   const [sellerData, setSellerData] = useState<SellerData | null>(null);
   const [sellerStats, setSellerStats] = useState<SellerStats | null>(null);
+  const [listings, setListings] = useState<Listing[]>([]); // ✅ Add listings state
   const [recentSales, setRecentSales] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadingListings, setLoadingListings] = useState(false); // ✅ Add loading state for listings
   const [loginAttempted, setLoginAttempted] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isClient, setIsClient] = useState(false); // ✅ Track client-side mounting
+  const [isClient, setIsClient] = useState(false);
 
   // ✅ Only run on client side
   useEffect(() => {
@@ -94,11 +124,87 @@ export default function SoloSellerDashboard() {
       // Load dashboard data only when authenticated and client-side
       if (authenticated && isClient) {
         await loadSellerData();
+        await loadUserListings(); // ✅ Load listings when dashboard loads
       }
     }
 
     checkAuth();
   }, [authenticated, router, isClient]);
+
+  // ✅ Function to load user's listings
+  const loadUserListings = async () => {
+    try {
+      setLoadingListings(true);
+      console.log('🔍 Loading user listings...');
+      
+      // Get auth token
+      let token: string | null = null;
+      if (typeof window !== 'undefined') {
+        token = localStorage.getItem('authToken');
+      }
+      
+      if (!token) {
+        try {
+          token = await getAccessToken();
+          if (token && typeof window !== 'undefined') {
+            localStorage.setItem('authToken', token);
+          }
+        } catch (tokenError) {
+          console.warn('⚠️ Could not get auth token for listings');
+        }
+      }
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      // Add user ID as URL parameter as fallback
+      const userId = user?.id || 'demo-user';
+      const url = `/api/listing/get?userId=${encodeURIComponent(userId)}`;
+      
+      console.log('🌐 Fetching listings from:', url);
+
+      const response = await fetch(url, { headers });
+      
+      console.log('📡 Listings API response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📄 Listings API response:', data);
+        
+        if (data.success) {
+          setListings(data.listings || []);
+          console.log('✅ Loaded', data.listings?.length || 0, 'listings');
+          
+          // Update seller stats with actual listing count
+          if (sellerStats) {
+            setSellerStats({
+              ...sellerStats,
+              activeListings: data.listings?.length || 0,
+              status: {
+                ...sellerStats.status,
+                hasActiveListings: (data.listings?.length || 0) > 0
+              }
+            });
+          }
+        } else {
+          console.error('❌ Listings API error:', data.error);
+        }
+      } else {
+        console.warn('⚠️ Listings API not available or failed:', response.status);
+        // Don't set error - API might not exist yet
+      }
+    } catch (error) {
+      console.error('💥 Error loading listings:', error);
+      // Don't set error - this is optional for now
+    } finally {
+      setLoadingListings(false);
+    }
+  };
 
   const loadSellerData = async () => {
     try {
@@ -380,7 +486,7 @@ export default function SoloSellerDashboard() {
               ${sellerStats?.totalEarnings.toFixed(2) || '0.00'}
             </p>
             <p className="text-sm text-gray-500">
-              {sellerStats?.totalSales || 0} sales • {sellerStats?.activeListings || 0} active listings
+              {sellerStats?.totalSales || 0} sales • {listings.length || 0} active listings
             </p>
           </div>
         </div>
@@ -436,10 +542,10 @@ export default function SoloSellerDashboard() {
         <div className="bg-white border rounded-lg p-4">
           <h3 className="font-semibold text-gray-700 text-sm">Active Listings</h3>
           <p className="text-2xl font-bold text-orange-600">
-            {sellerStats?.activeListings || 0}
+            {listings.length || 0}
           </p>
           <p className="text-xs text-gray-500 mt-1">
-            {sellerStats?.totalViews || 0} total views
+            {listings.reduce((total, listing) => total + listing.views, 0)} total views
           </p>
         </div>
       </section>
@@ -484,6 +590,132 @@ export default function SoloSellerDashboard() {
             <div className="text-xs opacity-90">Professional billing</div>
           </button>
         </div>
+      </section>
+
+      {/* ✅ MY LISTINGS SECTION */}
+      <section className="bg-white border rounded-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold">📋 My Listings</h2>
+          <button
+            onClick={() => router.push('/seller/create-listing')}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm"
+          >
+            + Create Listing
+          </button>
+        </div>
+
+        {loadingListings ? (
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-500">Loading your listings...</p>
+          </div>
+        ) : listings.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="text-4xl mb-4">📦</div>
+            <p className="text-gray-500 mb-4">No listings yet! Create your first listing to start selling.</p>
+            <div className="space-y-2 text-sm text-gray-400 mb-4">
+              <p>• Add photos and descriptions of items you want to sell</p>
+              <p>• Set competitive prices for quick sales</p>
+              <p>• Choose multiple payment methods to reach more buyers</p>
+              <p>• Share your listing links on social media</p>
+            </div>
+            <button
+              onClick={() => router.push('/seller/create-listing')}
+              className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
+            >
+              Create Your First Listing
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {listings.map((listing) => (
+              <div key={listing.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <h3 className="font-semibold text-lg">{listing.title}</h3>
+                      <span className="text-2xl font-bold text-green-600">
+                        ${listing.price.toFixed(2)}
+                      </span>
+                      {!listing.isActive && (
+                        <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">
+                          Inactive
+                        </span>
+                      )}
+                      {!listing.isVisible && (
+                        <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded">
+                          Hidden
+                        </span>
+                      )}
+                    </div>
+                    
+                    <p className="text-gray-600 text-sm mb-2">
+                      {listing.shortDescription || listing.description.substring(0, 100) + '...'}
+                    </p>
+                    
+                    <div className="flex items-center space-x-4 text-xs text-gray-500">
+                      <span>📂 {listing.category}</span>
+                      <span>👁️ {listing.views} views</span>
+                      <span>💬 {listing.inquiries} inquiries</span>
+                      <span>💰 {listing.sales} sales</span>
+                      <span>📅 {new Date(listing.createdAt).toLocaleDateString()}</span>
+                    </div>
+
+                    <div className="flex items-center space-x-2 mt-2">
+                      {listing.paymentMethods.pyusd && (
+                        <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">PYUSD</span>
+                      )}
+                      {listing.paymentMethods.paypal && (
+                        <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">PayPal</span>
+                      )}
+                      {listing.paymentMethods.venmo && (
+                        <span className="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded">Venmo</span>
+                      )}
+                      {listing.paymentMethods.email && (
+                        <span className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded">Email</span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col space-y-2 ml-4">
+                    <button
+                      onClick={() => window.open(listing.paymentUrl, '_blank')}
+                      className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
+                    >
+                      View Listing
+                    </button>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(listing.paymentUrl)}
+                      className="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700"
+                    >
+                      Copy Link
+                    </button>
+                    <button
+                      onClick={() => {
+                        // TODO: Add edit functionality
+                        alert('Edit functionality coming soon!');
+                      }}
+                      className="bg-yellow-600 text-white px-3 py-1 rounded text-sm hover:bg-yellow-700"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+            
+            {listings.length > 0 && (
+              <div className="text-center pt-4">
+                <button
+                  onClick={() => router.push('/seller/manage-listings')}
+                  className="text-blue-600 hover:text-blue-800 text-sm"
+                >
+                  View All Listings →
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       {/* Recent Sales */}
@@ -537,29 +769,37 @@ export default function SoloSellerDashboard() {
 
       {/* Seller Tools & Management */}
       <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* My Listings */}
+        {/* Listing Analytics */}
         <div className="bg-white border rounded-lg p-6">
-          <h3 className="text-lg font-semibold mb-4">📋 My Listings</h3>
-          {(sellerStats?.activeListings ?? 0) > 0 ? (
+          <h3 className="text-lg font-semibold mb-4">📊 Listing Performance</h3>
+          {listings.length > 0 ? (
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span>Active Listings:</span>
-                <span className="font-semibold text-green-600">{sellerStats?.activeListings}</span>
+                <span>Total Listings:</span>
+                <span className="font-semibold text-blue-600">{listings.length}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span>Total Views:</span>
-                <span className="font-semibold">{sellerStats?.totalViews}</span>
+                <span className="font-semibold">{listings.reduce((total, listing) => total + listing.views, 0)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>Total Inquiries:</span>
+                <span className="font-semibold">{listings.reduce((total, listing) => total + listing.inquiries, 0)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>Total Sales:</span>
+                <span className="font-semibold text-green-600">{listings.reduce((total, listing) => total + listing.sales, 0)}</span>
               </div>
               <button
-                onClick={() => router.push('/seller/manage-listings')}
-                className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+                onClick={() => router.push('/seller/analytics')}
+                className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 mt-4"
               >
-                Manage Listings
+                View Analytics
               </button>
             </div>
           ) : (
             <div className="text-center py-4">
-              <p className="text-gray-500 mb-3">No active listings</p>
+              <p className="text-gray-500 mb-3">No listings to analyze yet</p>
               <button
                 onClick={() => router.push('/seller/create-listing')}
                 className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
