@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { usePrivy } from '@privy-io/react-auth'; // ✅ Added Privy import
+import { usePrivy } from '@privy-io/react-auth';
 import { FormField } from '@/components/FormField';
 import { SelectField } from '@/components/SelectField';
 import { DEFAULT_CHAIN_ID } from '@/lib/chains';
@@ -13,7 +13,7 @@ interface SoloSellerFormData {
   sellerType: string;
   contactEmail: string;
   contactPhone: string;
-  socialHandle: string; // Instagram, Twitter, etc.
+  socialHandle: string;
   description: string;
   website: string;
   preferredToken: string;
@@ -21,7 +21,7 @@ interface SoloSellerFormData {
   enablePaymentLinks: boolean;
   enableInvoices: boolean;
   enableListings: boolean;
-  customMessage: string; // Message for payment requests
+  customMessage: string;
   defaultPricing: number;
 }
 
@@ -42,10 +42,11 @@ const sellerTypes = [
 
 export default function SoloSellerOnboarding() {
   const router = useRouter();
-  const { user, getAccessToken, authenticated } = usePrivy(); // ✅ Added Privy hooks
+  const { user, getAccessToken, authenticated } = usePrivy();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isClient, setIsClient] = useState(false);
   
   const [formData, setFormData] = useState<SoloSellerFormData>({
     displayName: '',
@@ -55,7 +56,7 @@ export default function SoloSellerOnboarding() {
     socialHandle: '',
     description: '',
     website: '',
-    preferredToken: DEFAULT_TOKEN_SYMBOL, // PYUSD
+    preferredToken: DEFAULT_TOKEN_SYMBOL,
     enableQRCodes: true,
     enablePaymentLinks: true,
     enableInvoices: true,
@@ -64,8 +65,31 @@ export default function SoloSellerOnboarding() {
     defaultPricing: 50,
   });
 
+  // ✅ Only run on client side
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   const updateFormData = (field: keyof SoloSellerFormData, value: string | boolean | number) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // ✅ Safe function to get localStorage value
+  const getStorageItem = (key: string): string | null => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(key);
+  };
+
+  // ✅ Safe function to set localStorage value
+  const setStorageItem = (key: string, value: string): void => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(key, value);
+  };
+
+  // ✅ Safe function to remove localStorage value
+  const removeStorageItem = (key: string): void => {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem(key);
   };
 
   const handleSubmit = async () => {
@@ -76,7 +100,6 @@ export default function SoloSellerOnboarding() {
       return;
     }
 
-    // ✅ Check authentication first
     if (!authenticated) {
       console.error('❌ Solo Seller: User not authenticated');
       setError('Please connect your wallet to continue');
@@ -96,11 +119,10 @@ export default function SoloSellerOnboarding() {
     setError('');
 
     try {
-      // ✅ Enhanced token handling
-      let token = localStorage.getItem('authToken');
+      // ✅ Safe localStorage access
+      let token = getStorageItem('authToken');
       console.log('🔐 Solo Seller: Token from localStorage:', token ? `${token.substring(0, 20)}...` : 'null');
       
-      // If no authToken or it's invalid, try getting from Privy
       if (!token || token === 'null' || token.trim() === '') {
         console.log('🔄 Solo Seller: Getting fresh token from Privy...');
         try {
@@ -108,7 +130,7 @@ export default function SoloSellerOnboarding() {
           console.log('✅ Solo Seller: Fresh token obtained:', token ? `${token.substring(0, 20)}...` : 'null');
           
           if (token) {
-            localStorage.setItem('authToken', token);
+            setStorageItem('authToken', token);
             console.log('💾 Solo Seller: Token saved to localStorage');
           }
         } catch (tokenError) {
@@ -125,7 +147,6 @@ export default function SoloSellerOnboarding() {
         return;
       }
 
-      // ✅ Prepare request data
       const requestData = {
         displayName: formData.displayName,
         sellerType: formData.sellerType,
@@ -142,16 +163,10 @@ export default function SoloSellerOnboarding() {
         customMessage: formData.customMessage,
         defaultPricing: formData.defaultPricing,
         userType: 'solo_seller',
-        walletAddress: user.wallet.address // ✅ Include wallet address
+        walletAddress: user.wallet.address
       };
 
-      console.log('📦 Solo Seller: Request data prepared:', {
-        ...requestData,
-        displayName: requestData.displayName,
-        sellerType: requestData.sellerType,
-        walletAddress: requestData.walletAddress
-      });
-
+      console.log('📦 Solo Seller: Request data prepared');
       console.log('🌐 Solo Seller: Making API request to /api/seller/create...');
       
       const response = await fetch('/api/seller/create', {
@@ -164,7 +179,6 @@ export default function SoloSellerOnboarding() {
       });
 
       console.log('📡 Solo Seller: API response status:', response.status);
-      console.log('📡 Solo Seller: API response headers:', Object.fromEntries(response.headers.entries()));
 
       const data = await response.json();
       console.log('📄 Solo Seller: API response data:', data);
@@ -172,22 +186,20 @@ export default function SoloSellerOnboarding() {
       if (data.success) {
         console.log('✅ Solo Seller: Account created successfully!');
         
-        // ✅ Store seller data for dashboard
-        localStorage.setItem('sellerData', JSON.stringify(data.seller));
-        localStorage.setItem('userType', 'solo_seller');
+        // ✅ Safe localStorage access
+        setStorageItem('sellerData', JSON.stringify(data.seller));
+        setStorageItem('userType', 'solo_seller');
         console.log('💾 Solo Seller: Data saved to localStorage');
         
-        // ✅ Redirect to solo seller dashboard
         console.log('🎯 Solo Seller: Redirecting to dashboard...');
         router.push('/dashboard/solo-seller');
       } else {
         console.error('❌ Solo Seller: API returned error:', data.error);
         setError(data.error || 'Failed to create solo seller account');
         
-        // ✅ Handle specific auth errors
         if (data.code === 'INVALID_TOKEN' || data.code === 'EXPIRED_TOKEN') {
           console.log('🔄 Solo Seller: Token invalid, clearing localStorage...');
-          localStorage.removeItem('authToken');
+          removeStorageItem('authToken');
           setError('Session expired. Please refresh and try again.');
         }
       }
@@ -199,15 +211,17 @@ export default function SoloSellerOnboarding() {
     }
   };
 
-  // ✅ Debug info in console
-  console.log('🔍 Solo Seller Debug Info:', {
-    authenticated,
-    hasUser: !!user,
-    hasWallet: !!user?.wallet?.address,
-    walletAddress: user?.wallet?.address,
-    step,
-    hasAuthToken: !!localStorage.getItem('authToken')
-  });
+  // ✅ Show loading until client-side hydration
+  if (!isClient) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center bg-white p-8 rounded-lg shadow-md">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold mb-2 text-gray-900">Loading...</h2>
+        </div>
+      </div>
+    );
+  }
 
   if (step === 1) {
     return (
@@ -239,14 +253,14 @@ export default function SoloSellerOnboarding() {
               </div>
             )}
 
-            {/* ✅ Debug info for development */}
-            {process.env.NODE_ENV === 'development' && (
+            {/* ✅ Safe debug info for development */}
+            {process.env.NODE_ENV === 'development' && isClient && (
               <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <h4 className="font-medium text-yellow-900 mb-2">🔍 Debug Info:</h4>
                 <p className="text-xs text-yellow-800">
                   Authenticated: {authenticated ? '✅' : '❌'} | 
                   Wallet: {user?.wallet?.address ? `${user.wallet.address.substring(0, 8)}...` : '❌'} | 
-                  Token: {localStorage.getItem('authToken') ? '✅' : '❌'}
+                  Token: {getStorageItem('authToken') ? '✅' : '❌'}
                 </p>
               </div>
             )}
@@ -306,7 +320,6 @@ export default function SoloSellerOnboarding() {
                 helpText="Helps customers understand what you offer"
               />
 
-              {/* ENS Setup Prompt */}
               <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                 <h3 className="font-medium text-purple-900 mb-2">🌐 ENS Identity Setup</h3>
                 <p className="text-sm text-purple-800 mb-3">
@@ -325,7 +338,6 @@ export default function SoloSellerOnboarding() {
                 </div>
               </div>
 
-              {/* PYUSD info */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h3 className="font-medium text-blue-900 mb-2">💰 Accept PYUSD Payments</h3>
                 <p className="text-sm text-blue-800">
@@ -377,14 +389,12 @@ export default function SoloSellerOnboarding() {
             </div>
 
             <div className="space-y-6">
-              {/* Payment Tool Options */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   Payment Tools (Select all that apply)
                 </label>
                 
                 <div className="space-y-4">
-                  {/* QR Codes */}
                   <label className="flex items-start p-4 border-2 border-blue-200 bg-blue-50 rounded-lg cursor-pointer">
                     <input
                       type="checkbox"
@@ -404,7 +414,6 @@ export default function SoloSellerOnboarding() {
                     </div>
                   </label>
 
-                  {/* Payment Links */}
                   <label className="flex items-start p-4 border-2 border-green-200 bg-green-50 rounded-lg cursor-pointer">
                     <input
                       type="checkbox"
@@ -424,7 +433,6 @@ export default function SoloSellerOnboarding() {
                     </div>
                   </label>
 
-                  {/* Invoices */}
                   <label className="flex items-start p-4 border-2 border-purple-200 bg-purple-50 rounded-lg cursor-pointer">
                     <input
                       type="checkbox"
@@ -444,7 +452,6 @@ export default function SoloSellerOnboarding() {
                     </div>
                   </label>
 
-                  {/* Product Listings */}
                   <label className="flex items-start p-4 border-2 border-orange-200 bg-orange-50 rounded-lg cursor-pointer">
                     <input
                       type="checkbox"
@@ -466,7 +473,6 @@ export default function SoloSellerOnboarding() {
                 </div>
               </div>
 
-              {/* Default Pricing */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Default Service Price (USD)
@@ -488,7 +494,6 @@ export default function SoloSellerOnboarding() {
                 </p>
               </div>
 
-              {/* Custom Payment Message */}
               <FormField
                 label="Default Payment Message"
                 type="text"
@@ -498,7 +503,6 @@ export default function SoloSellerOnboarding() {
                 helpText="This appears on your payment requests. You can customize it for each payment."
               />
 
-              {/* Currency Display */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Payment Currency
@@ -596,7 +600,6 @@ export default function SoloSellerOnboarding() {
                 </div>
               </div>
 
-              {/* ENS Registration Reminder */}
               <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                 <h3 className="font-medium text-purple-900 mb-2">🌐 Next Step: Get Your ENS Name!</h3>
                 <p className="text-sm text-purple-800 mb-2">
