@@ -42,15 +42,46 @@ export default function CreateListingPage() {
     setError('');
 
     try {
-      const response = await fetch('/api/seller/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          sellerId: user?.id,
-          price: parseFloat(formData.price)
-        })
+      console.log('🚀 Creating listing...');
+
+      // Get auth token
+      let token = null;
+      try {
+        token = await getAccessToken();
+        console.log('✅ Got auth token');
+      } catch (tokenError) {
+        console.warn('⚠️ Could not get auth token, proceeding without');
+      }
+
+      const requestData = {
+        ...formData,
+        sellerId: user?.id,
+        price: parseFloat(formData.price)
+      };
+
+      console.log('📦 Sending listing data:', {
+        title: requestData.title,
+        price: requestData.price,
+        category: requestData.category,
+        sellerId: requestData.sellerId
       });
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      // ✅ ONLY CHANGE: Add the 's' to match your existing API route
+      const response = await fetch('/api/listings/create', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestData)
+      });
+
+      console.log('📡 API response status:', response.status);
 
       const result = await response.json();
       console.log('📄 API response:', result);
