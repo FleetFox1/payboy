@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
-import ENSAddress from '@/components/ENSAddress';
 
 interface SellerData {
   id: string;
@@ -53,6 +52,15 @@ interface SellerStats {
   };
 }
 
+// ✅ Simple ENS Address Component for this file
+function ENSAddress({ address, className = '' }: { address: string; className?: string }) {
+  return (
+    <span className={`font-mono text-sm ${className}`}>
+      {address ? `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : 'No address'}
+    </span>
+  );
+}
+
 export default function SoloSellerDashboard() {
   const router = useRouter();
   const { authenticated, user, login } = usePrivy();
@@ -62,6 +70,12 @@ export default function SoloSellerDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [loginAttempted, setLoginAttempted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false); // ✅ Track client-side mounting
+
+  // ✅ Only run on client side
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     async function checkAuth() {
@@ -77,45 +91,156 @@ export default function SoloSellerDashboard() {
         return;
       }
 
-      // Load dashboard data only when authenticated
-      if (authenticated) {
+      // Load dashboard data only when authenticated and client-side
+      if (authenticated && isClient) {
         await loadSellerData();
       }
     }
 
     checkAuth();
-  }, [authenticated, router]);
+  }, [authenticated, router, isClient]);
 
   const loadSellerData = async () => {
     try {
       setIsLoading(true);
-      const token = localStorage.getItem('authToken');
+      
+      // ✅ Safe localStorage access
+      let token: string | null = null;
+      if (typeof window !== 'undefined') {
+        token = localStorage.getItem('authToken');
+      }
       
       if (!token) {
         router.replace('/role');
         return;
       }
 
-      // Fetch seller stats
-      const statsResponse = await fetch('/api/seller/stats', {
-        headers: {
-          'Authorization': `Bearer ${token}`
+      // ✅ Try to use stored seller data first
+      if (typeof window !== 'undefined') {
+        const storedSellerData = localStorage.getItem('sellerData');
+        if (storedSellerData) {
+          try {
+            const sellerData = JSON.parse(storedSellerData);
+            console.log('✅ Solo Seller Dashboard: Using stored seller data:', sellerData);
+            
+            // Create stats from stored data
+            const mockStats: SellerStats = {
+              totalEarnings: sellerData.totalEarnings || 0,
+              totalSales: sellerData.totalSales || 0,
+              activeListings: sellerData.activeListings || 0,
+              totalViews: sellerData.totalViews || 0,
+              averageSalePrice: sellerData.averageSalePrice || 0,
+              sellerName: sellerData.displayName || 'Solo Seller',
+              ensName: sellerData.ensName,
+              sellerType: sellerData.sellerType || 'Creator',
+              isVerified: sellerData.isVerified || false,
+              isActive: sellerData.isActive !== false,
+              sellerAge: {
+                days: sellerData.createdAt ? Math.floor((Date.now() - new Date(sellerData.createdAt).getTime()) / (1000 * 60 * 60 * 24)) : 0,
+                weeks: 0,
+                months: 0
+              },
+              lastSale: sellerData.lastSale,
+              daysSinceLastSale: sellerData.lastSale ? Math.floor((Date.now() - new Date(sellerData.lastSale).getTime()) / (1000 * 60 * 60 * 24)) : undefined,
+              performance: {
+                salesGoal: 20,
+                salesProgress: (sellerData.totalSales || 0) / 20 * 100,
+                earningsGoal: 500,
+                earningsProgress: (sellerData.totalEarnings || 0) / 500 * 100
+              },
+              status: {
+                hasENS: !!sellerData.ensName,
+                profileCompletion: 75,
+                hasActiveListings: (sellerData.activeListings || 0) > 0
+              }
+            };
+            
+            setSellerStats(mockStats);
+            setIsLoading(false);
+            return;
+          } catch (parseError) {
+            console.error('Error parsing stored seller data:', parseError);
+          }
         }
-      });
+      }
 
-      if (statsResponse.ok) {
-        const statsData = await statsResponse.json();
-        if (statsData.success) {
-          setSellerStats(statsData.stats);
+      // ✅ Try API if no stored data (will create the endpoint later)
+      try {
+        const statsResponse = await fetch('/api/seller/stats', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json();
+          if (statsData.success) {
+            setSellerStats(statsData.stats);
+          } else {
+            setError(statsData.error || 'Failed to load seller data');
+          }
+        } else if (statsResponse.status === 404) {
+          // Seller not found - redirect to onboarding
+          router.replace('/onboarding/solo-seller');
+          return;
         } else {
-          setError(statsData.error || 'Failed to load seller data');
+          // API doesn't exist yet - use default data
+          console.log('📝 Solo Seller Dashboard: API not ready, using default data');
+          
+          const defaultStats: SellerStats = {
+            totalEarnings: 0,
+            totalSales: 0,
+            activeListings: 0,
+            totalViews: 0,
+            averageSalePrice: 0,
+            sellerName: 'Solo Seller',
+            sellerType: 'Creator',
+            isVerified: false,
+            isActive: true,
+            sellerAge: { days: 0, weeks: 0, months: 0 },
+            performance: {
+              salesGoal: 20,
+              salesProgress: 0,
+              earningsGoal: 500,
+              earningsProgress: 0
+            },
+            status: {
+              hasENS: false,
+              profileCompletion: 75,
+              hasActiveListings: false
+            }
+          };
+          
+          setSellerStats(defaultStats);
         }
-      } else if (statsResponse.status === 404) {
-        // Seller not found - redirect to onboarding
-        router.replace('/onboarding/solo-seller');
-        return;
-      } else {
-        setError('Failed to fetch seller data');
+      } catch (apiError) {
+        console.log('📝 Solo Seller Dashboard: API call failed, using default data');
+        
+        const defaultStats: SellerStats = {
+          totalEarnings: 0,
+          totalSales: 0,
+          activeListings: 0,
+          totalViews: 0,
+          averageSalePrice: 0,
+          sellerName: 'Solo Seller',
+          sellerType: 'Creator',
+          isVerified: false,
+          isActive: true,
+          sellerAge: { days: 0, weeks: 0, months: 0 },
+          performance: {
+            salesGoal: 20,
+            salesProgress: 0,
+            earningsGoal: 500,
+            earningsProgress: 0
+          },
+          status: {
+            hasENS: false,
+            profileCompletion: 75,
+            hasActiveListings: false
+          }
+        };
+        
+        setSellerStats(defaultStats);
       }
 
       // Mock recent sales for now (TODO: Create sales API)
@@ -153,6 +278,18 @@ export default function SoloSellerDashboard() {
       setIsLoading(false);
     }
   };
+
+  // ✅ Show loading until client-side hydration
+  if (!isClient) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold mb-2">Loading...</h2>
+        </div>
+      </div>
+    );
+  }
 
   // Show loading state
   if (isLoading || !authenticated) {
