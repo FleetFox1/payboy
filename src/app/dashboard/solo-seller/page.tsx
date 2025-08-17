@@ -429,6 +429,10 @@ export default function SoloSellerDashboard() {
     );
   }
 
+  const handleSettingsClick = () => {
+    router.push('/dashboard/settings');
+  };
+
   return (
     <main className="max-w-6xl mx-auto p-6 space-y-6">
       {/* Header */}
@@ -452,9 +456,18 @@ export default function SoloSellerDashboard() {
           </div>
         </div>
         
-        <div className="text-right text-sm text-gray-600">
-          <p>Selling since: {sellerStats?.sellerAge.days || 0} days ago</p>
-          <p>Profile: {sellerStats?.status.profileCompletion || 0}% complete</p>
+        <div className="flex items-center space-x-4">
+          <div className="text-right text-sm text-gray-600">
+            <p>Selling since: {sellerStats?.sellerAge.days || 0} days ago</p>
+            <p>Profile: {sellerStats?.status.profileCompletion || 0}% complete</p>
+          </div>
+          <button
+            onClick={handleSettingsClick}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium flex items-center space-x-2"
+          >
+            <span>⚙️</span>
+            <span>Settings</span>
+          </button>
         </div>
       </div>
 

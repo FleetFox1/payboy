@@ -147,6 +147,10 @@ export default function StoreDashboard() {
     }
   };
 
+  const handleSettingsClick = () => {
+    router.push('/dashboard/settings');
+  };
+
   // Show loading state
   if (isLoading || !authenticated) {
     return (
@@ -199,9 +203,18 @@ export default function StoreDashboard() {
           </div>
         </div>
         
-        <div className="text-right text-sm text-gray-600">
-          <p>Store Age: {storeStats?.storeAge.days || 0} days</p>
-          <p>Profile: {storeStats?.status.profileCompletion || 0}% complete</p>
+        <div className="flex items-center space-x-4">
+          <div className="text-right text-sm text-gray-600">
+            <p>Store Age: {storeStats?.storeAge.days || 0} days</p>
+            <p>Profile: {storeStats?.status.profileCompletion || 0}% complete</p>
+          </div>
+          <button
+            onClick={handleSettingsClick}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium flex items-center space-x-2"
+          >
+            <span>⚙️</span>
+            <span>Settings</span>
+          </button>
         </div>
       </div>
 
