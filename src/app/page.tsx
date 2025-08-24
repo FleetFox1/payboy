@@ -22,6 +22,10 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+      {/* Beta/Under Construction Banner */}
+      <div className="w-full bg-yellow-200 text-yellow-900 text-center py-3 font-semibold text-lg shadow-md z-50">
+        🚧 PayBoy is in <span className="font-bold">Beta</span> &mdash; Under Construction! Features and UI may change. 🚧
+      </div>
       {/* Navigation */}
       <nav className="bg-white/80 backdrop-blur-sm border-b sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4">
